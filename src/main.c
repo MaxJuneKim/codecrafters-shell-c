@@ -5,6 +5,7 @@
 
 #include "global_vars.h"
 #include "type.h"
+#include "execute_bin.h"
 
 void executeCommand(char* input) {
   // extract command
@@ -21,7 +22,7 @@ void executeCommand(char* input) {
   } else if (strcmp(command, "type") == 0) {
     executeType(input + i + 1);
   } else {
-    printf("%s: command not found\n", command);
+    execute_bin(command, input + i + 1);
   }
 }
 

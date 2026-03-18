@@ -1,3 +1,3 @@
 #pragma once
 
-void executeType(char* argCommand);
+extern void executeType(const char* argCommand);
