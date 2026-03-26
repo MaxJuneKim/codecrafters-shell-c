@@ -52,7 +52,9 @@ Mkfile.old
 dkms.conf
 
 build
+temp_bins
 vcpkg_installed
+CMakePresets.json
 
 # .vscode
 .vscode/*

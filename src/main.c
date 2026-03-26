@@ -6,8 +6,13 @@
 #include "global_vars.h"
 #include "type.h"
 #include "execute_bin.h"
+#include "Navigation/pwd.h"
 
 void executeCommand(char* input) {
+  if (*input == '\0') { // empty command
+    return;
+  }
+
   // extract command
   char command[1024];
   int i = 0;
@@ -21,6 +26,8 @@ void executeCommand(char* input) {
     printf("%s\n", input + i + 1);
   } else if (strcmp(command, "type") == 0) {
     executeType(input + i + 1);
+  } else if (strcmp(command, "pwd") == 0) {
+    pwd();
   } else {
     execute_bin(command, input + i + 1);
   }
