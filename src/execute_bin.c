@@ -10,6 +10,7 @@
 #define MAX_ARG_LEN 256;
 #define MAX_NUM_ARGS 1024;
 
+// Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
 static char** parse_args(const char* bin_name, const char* raw_args) {
   char** args = (char**)malloc(sizeof(char**) * 1024);
   args[0] = (char*)malloc(sizeof(char) * 256);
@@ -20,6 +21,7 @@ static char** parse_args(const char* bin_name, const char* raw_args) {
   char* cur_arg = strtok(raw_args_dup, " ");
 
   while (cur_arg) {
+    if (*cur_arg == '\0') { continue; } // skipping empty string
     args[arg_count++] = cur_arg;
     cur_arg = strtok(NULL, " ");
   }
