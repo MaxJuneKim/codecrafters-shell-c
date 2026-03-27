@@ -1,4 +1,4 @@
 #pragma once
 
-#define total_commands 4
+#define total_commands 5
 extern const char* const commands[total_commands];

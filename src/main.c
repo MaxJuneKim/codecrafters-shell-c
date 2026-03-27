@@ -7,6 +7,7 @@
 #include "type.h"
 #include "execute_bin.h"
 #include "Navigation/pwd.h"
+#include "Navigation/cd.h"
 
 void executeCommand(char* input) {
   if (*input == '\0') { // empty command
@@ -28,6 +29,8 @@ void executeCommand(char* input) {
     executeType(input + i + 1);
   } else if (strcmp(command, "pwd") == 0) {
     pwd();
+  } else if (strcmp(command, "cd") == 0) {
+    cd(input + i + 1);
   } else {
     execute_bin(command, input + i + 1);
   }
