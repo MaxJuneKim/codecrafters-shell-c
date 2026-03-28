@@ -6,11 +6,11 @@
 #include "Navigation/cd.h"
 
 void cd(const char* directory) {
-  if (strcmp(directory, "~") == 0) {
-    char* home_directory = getenv("HOME");
-    chdir(home_directory);
-    return;
-  }
+  // if (strcmp(directory, "~") == 0) {
+  //   char* home_directory = getenv("HOME");
+  //   chdir(home_directory);
+  //   return;
+  // }
 
   int result = chdir(directory);
   if (result == -1) {

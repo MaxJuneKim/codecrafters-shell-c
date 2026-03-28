@@ -6,6 +6,7 @@
 #include "global_vars.h"
 #include "type.h"
 #include "execute_bin.h"
+#include "parse_arg.h"
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
 
@@ -16,23 +17,23 @@ void executeCommand(char* input) {
 
   // extract command
   char command[1024];
-  int i = 0;
-  while (*(input + i) != '\0' && *(input + i) != ' ') {
-    command[i] = *(input + i);
-    i++;
-  }
-  command[i] = '\0';
+  char** arguments = parse_args(input);
+  strcpy(command, arguments[0]);
 
   if (strcmp(command, "echo") == 0) {
-    printf("%s\n", input + i + 1);
+    char** cursor = arguments + 1;
+    while (*cursor != NULL) {
+      printf("%s ", *cursor++);
+    }
+    printf("\n");
   } else if (strcmp(command, "type") == 0) {
-    executeType(input + i + 1);
+    executeType(arguments[1]);
   } else if (strcmp(command, "pwd") == 0) {
     pwd();
   } else if (strcmp(command, "cd") == 0) {
-    cd(input + i + 1);
+    cd(arguments[1]);
   } else {
-    execute_bin(command, input + i + 1);
+    execute_bin(arguments);
   }
 }
 
