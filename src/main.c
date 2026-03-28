@@ -33,7 +33,7 @@ void executeCommand(char* input) {
   } else if (strcmp(command, "cd") == 0) {
     cd(arguments[1]);
   } else {
-    execute_bin(arguments);
+    execute_bin((const char* const*)arguments);
   }
 }
 
