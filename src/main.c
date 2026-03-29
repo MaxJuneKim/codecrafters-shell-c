@@ -18,6 +18,10 @@ void executeCommand(char* input) {
   // extract command
   char command[1024];
   char** arguments = parse_args(input);
+  if (!arguments) { // parsing failed
+    printf("Failed to parse command: %s\n", input);
+    return;
+  }
   strcpy(command, arguments[0]);
 
   if (strcmp(command, "echo") == 0) {
