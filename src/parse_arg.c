@@ -46,6 +46,8 @@ char** parse_args(const char* raw_args) {
       cur_arg_index += n;
       cursor += (n + 2);
       continue;
+    } else if (*cursor == '\\') {
+      cursor++;
     } else if (*cursor == '~') { // expanding home directory
       const char* home_dir = getenv("HOME");
       while (*home_dir != '\0') {
