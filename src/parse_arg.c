@@ -5,11 +5,12 @@
 #include "parse_arg.h"
 
 // treat every character in single quotes literally, including delimiters. Returns number of characters that were appended
-static const int literals_single_quote_open(char* dest, const char* cursor_in_raw_args);
+static int literals_single_quote_open(char* dest, const char* cursor_in_raw_args);
 
 // treat every character in double quotes literally, including delimiters. But it can still allow some special characters to be interpreted
-// Returns number of characters that were appended
-static const int literals_double_quote_open(char* dest, const char* cursor_in_raw_args);
+// Backlash in double quotes will escape: ', ", \, $, and new_line. Returns number of characters that were appended
+// If it successfully finished reading characters in the enclosing double quotes, it will return true. otherwise, false
+static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor);
 
 // Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
 char** parse_args(const char* raw_args) {
@@ -39,12 +40,8 @@ char** parse_args(const char* raw_args) {
       
       continue;
     } else if (*cursor == '\"') {
-      int n = literals_double_quote_open(args[arg_count] + cur_arg_index, cursor + 1);
-      if (n == -1) {
+      if (!literals_double_quote_open(args[arg_count] + cur_arg_index, &cursor, &cur_arg_index))
         return NULL;
-      } 
-      cur_arg_index += n;
-      cursor += (n + 2);
       continue;
     } else if (*cursor == '\\') {
       cursor++;
@@ -63,7 +60,7 @@ char** parse_args(const char* raw_args) {
   return args;
 }
 
-static const int literals_single_quote_open(char* dest, const char* cursor_in_raw_args) {
+static int literals_single_quote_open(char* dest, const char* cursor_in_raw_args) {
   char* debug = dest;
   int count = 0;
   while (*cursor_in_raw_args != '\0' && *cursor_in_raw_args != '\'') {
@@ -73,12 +70,22 @@ static const int literals_single_quote_open(char* dest, const char* cursor_in_ra
   return *cursor_in_raw_args == '\'' ? count : -1;
 }
 
-static const int literals_double_quote_open(char* dest, const char* cursor_in_raw_args) {
+static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {
   char* debug = dest;
-  int count = 0;
-  while (*cursor_in_raw_args != '\0' && *cursor_in_raw_args != '\"') {
-    *dest++ = *cursor_in_raw_args++;
-    count++;
+  (*cursor_in_raw_args)++;
+  while (**cursor_in_raw_args != '\0' && **cursor_in_raw_args != '\"') {
+    if (**cursor_in_raw_args == '\\') {
+      switch ((*cursor_in_raw_args)[1]) {
+        case '\"': case '\'': case '$': case '\\': case '\n':
+          (*cursor_in_raw_args)++;
+          break;
+        default:
+          break;
+      }
+    }
+    *dest++ = *(*cursor_in_raw_args)++;
+    (*dest_cursor)++;
   }
-  return *cursor_in_raw_args == '\"' ? count : -1;
+
+  return *(*cursor_in_raw_args)++ == '\"';
 }
