@@ -10,21 +10,24 @@
   #include <windows.h>
 #endif
 
-void executeType(const char* argCommand) {
+char* executeType(const char* argCommand) {
+  char* output = (char*)malloc(sizeof(char) * 256);
   for (int i = 0; i < total_commands; i++) { // For each builtin shell,
     // compare argument command to the current builtin shell. If match, print "shell builtin" and return
     if (strcmp(argCommand, commands[i]) == 0) {
-      printf("%s is a shell builtin\n", argCommand);
-      return;
+      snprintf(output, strlen(argCommand) + 20, "%s is a shell builtin", argCommand);
+      return output;
     }
   }
 
   // if not found, go through every path in PATH
   char* exec_loc = locate_bin(argCommand);
   if (exec_loc) {
-    printf("%s is %s\n", argCommand, exec_loc);
+    // TODO: add safety measure to cover the case where there might not be enough room in output string 
+    int success = snprintf(output, strlen(argCommand) + strlen(exec_loc) + 5, "%s is %s", argCommand, exec_loc);
     free(exec_loc);
   } else { // if not, print "not found"
-    printf("%s: not found\n", argCommand);
+    snprintf(output, strlen(argCommand) + 12, "%s: not found", argCommand);
   }
+  return output;
 }

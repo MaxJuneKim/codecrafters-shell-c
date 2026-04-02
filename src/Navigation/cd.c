@@ -5,15 +5,15 @@
 
 #include "Navigation/cd.h"
 
-void cd(const char* directory) {
-  // if (strcmp(directory, "~") == 0) {
-  //   char* home_directory = getenv("HOME");
-  //   chdir(home_directory);
-  //   return;
-  // }
-
+char* cd(const char* directory) {
+  char* output;
   int result = chdir(directory);
   if (result == -1) {
-    printf("%s: No such file or directory\n", directory);
-  }
+    output = (char*)malloc(sizeof(char) * strlen(directory) + 29);
+    snprintf(output, strlen(directory) + 29, "%s: No such file or directory\n", directory);
+    return output;
+  } 
+  output = (char*)malloc(sizeof(char));
+  *output = '\0';
+  return output;
 }

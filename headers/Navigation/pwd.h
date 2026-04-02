@@ -1,4 +1,4 @@
 #pragma once
 
-// print path to the present working directory
-extern void pwd();
+// returns newly allocated string containing path to the present working directory
+extern char* pwd();

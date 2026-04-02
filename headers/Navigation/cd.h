@@ -1,4 +1,4 @@
 #pragma once
 
 // change directory
-extern void cd(const char* directory);
+extern char* cd(const char* directory);

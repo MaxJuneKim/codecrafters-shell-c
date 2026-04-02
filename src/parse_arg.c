@@ -14,49 +14,121 @@ static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_ar
 static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor);
 
 // Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
-char** parse_args(const char* raw_args) {
-  char** args = (char**)malloc(sizeof(char**) * 1024);
-  args[0] = (char*)malloc(sizeof(char) * 256);
+// It will treat every character within enclosing single quotes literally. within enclosing double quotes, some special characters will be interpreted
+// A string after > will be treated as name of the file that output of this program should be redirected to
+struct Argument* parse_args(const char* raw_args) {
+  struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
+  result->arguments = (char**)malloc(sizeof(char*) * 1024);
+  result->arguments[0] = (char*)malloc(sizeof(char) * 256);
+  result->output_terminals = (char**)malloc(sizeof(char*) * 1024);
 
   const char* cursor = raw_args;
   int arg_count = 0;
   int cur_arg_index = 0;
+  int terminals_count = 0;
+  int cur_terminals_index = 0;
 
   while (*cursor != '\0') {
     if (*cursor == ' ') {
-      if (cur_arg_index > 0) { // skipping empty argument
-        args[arg_count++][cur_arg_index] = '\0';
-        args[arg_count] = (char*)malloc(sizeof(char) * 256);
+      while (*cursor == ' ') cursor++; // skipping multiple whitespaces
+
+      if (*cursor != '>' && (*cursor != '1' || cursor[1] != '>')) { 
+        result->arguments[arg_count++][cur_arg_index] = '\0';
+        result->arguments[arg_count] = (char*)malloc(sizeof(char) * 256);
         cur_arg_index = 0;
       }
-      cursor++;
+      // cursor++;
       continue;
     } else if (*cursor == '\'') { 
       cursor++;
-      if (!literals_single_quote_open(args[arg_count] + cur_arg_index, &cursor, &cur_arg_index))
+      if (!literals_single_quote_open(result->arguments[arg_count] + cur_arg_index, &cursor, &cur_arg_index)) {
+        free(result->arguments);
+        free(result->output_terminals);
+        free(result);
         return NULL;
+      }
       continue;
     } else if (*cursor == '\"') {
       cursor++;
-      if (!literals_double_quote_open(args[arg_count] + cur_arg_index, &cursor, &cur_arg_index))
+      if (!literals_double_quote_open(result->arguments[arg_count] + cur_arg_index, &cursor, &cur_arg_index)) {
+        free(result->arguments);
+        free(result->output_terminals);
+        free(result);
         return NULL;
+      }
       continue;
     } else if (*cursor == '\\') {
       cursor++;
+    } else if (*cursor == '>' || (*cursor == '1' && cursor[1] == '>')) { // output redirector. assume it will be only one >
+      cursor += *cursor == '>' ? 1 : 2;
+      result->output_terminals[terminals_count] = (char*)malloc(sizeof(char) * 256);
+      cur_terminals_index = 0;
+      while (*cursor == ' ') cursor++; // skip whitespaces
+      while (*cursor != ' ' && *cursor != '\0' && *cursor != '>') {
+        // account for single and double quote
+        if (*cursor == '\'') {
+          cursor++;
+          if (!literals_single_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
+            free(result->arguments);
+            free(result->output_terminals);
+            free(result);
+            return NULL; // "Invalid single quote usage: Failed to parse"
+          } 
+          continue;
+        } else if (*cursor == '\"') {
+          cursor++;
+          if (!literals_double_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
+            free(result->arguments);
+            free(result->output_terminals);
+            free(result);
+            return NULL; // "Invalid double quote usage: Failed to parse"
+          }
+          continue;
+        } else if (*cursor == '\\') {
+          cursor++;
+        }
+        result->output_terminals[terminals_count][cur_terminals_index++] = *cursor++;
+      }
+      result->output_terminals[terminals_count++][cur_terminals_index] = '\0';
+      continue;
     } else if (*cursor == '~') { // expanding home directory
       const char* home_dir = getenv("HOME");
-      while (*home_dir != '\0') {
-        args[arg_count][cur_arg_index++] = *home_dir++;
-      }
+      // while (*home_dir != '\0') {
+      //   result->arguments[arg_count][cur_arg_index++] = *home_dir++;
+      // }
+      strcpy(result->arguments[arg_count] + cur_arg_index, home_dir);
       cursor++;
       continue;
     }
-    args[arg_count][cur_arg_index++] = *cursor++;
+    result->arguments[arg_count][cur_arg_index++] = *cursor++;
   }
 
-  args[++arg_count] = NULL;
-  return args;
+  result->arguments[++arg_count] = NULL;
+  result->output_terminals[terminals_count] = NULL;
+  return result;
 }
+
+// struct Argument* parse_args_v2(const char* raw_args) {
+//   struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
+//   result->arguments = (char**)malloc(sizeof(char*) * 1024);
+//   result->output_terminals = (char**)malloc(sizeof(char*) * 1024);
+
+//   while (*cursor != '\0') {
+//     // when reading a character,
+//     /*
+//     skipping whitespaces?
+//     if single quote is open -> treat this character literally
+//     if double quote is open -> treat this character literally, if not one of the exceptions: ',",$,\n,\
+//     if single quote is opening/closing -> invert single_quote_open
+//     if double quote is opening/closing
+
+//     if current character goes to arguments
+//     if current character goes to output_terminals
+
+//     process by character? process by delimiter?
+//     */
+//   }
+// }
 
 static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {
   char* debug = dest;
