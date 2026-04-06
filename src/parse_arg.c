@@ -108,6 +108,7 @@ struct Argument* parse_args(const char* raw_args) {
   return result;
 }
 
+// TODO: try to implement parse_args so it uses less lines of codes
 // struct Argument* parse_args_v2(const char* raw_args) {
 //   struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
 //   result->arguments = (char**)malloc(sizeof(char*) * 1024);

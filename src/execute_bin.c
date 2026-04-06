@@ -4,55 +4,56 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 #include "execute_bin.h"
 #include "locate_bin.h"
 #include "parse_arg.h"
 
-char* execute_bin(const char* const* args) {
+void execute_bin(const char** args, const char** output_stream) {
   char* full_path = locate_bin(args[0]);
-  int pipe_fd[2];
-  char* output;
 
   if (full_path) {
-    pipe(pipe_fd);
     pid_t process = fork();
     if (process == 0) { // child process
-      close(pipe_fd[0]);
-      // approach 2 idea: use write(int fildes, const void* buf, size_t nbytes)?
-      if (dup2(pipe_fd[1], STDOUT_FILENO) == -1) {
-        perror("dup2");
-        exit(EXIT_FAILURE);
+      const char** cursor = output_stream;
+      while (*cursor) {
+        int fd = open(*cursor, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (dup2(fd, STDOUT_FILENO) == -1) { // redirecting stdout to output_stream file(s)
+          printf("Failed to open file: %s\n", *cursor);
+        };
+        close(fd);
+        cursor++;
       }
-      close(pipe_fd[1]);
       execv(full_path, (char* const*)args);
       perror("execvp failed");
       exit(1);
     } else { // parent process
-      close(pipe_fd[1]);
-      output = (char*)malloc(sizeof(char) * 2048);
-
-      // receiving data from child
-      int read_bytes;
-      size_t offset = 0;
-      while (offset < 2048 && (read_bytes = read(pipe_fd[0], output + offset, 2048 - offset) > 0)) {
-        offset += read_bytes;
-      }
-      close(pipe_fd[0]);
-
       int status;
       free(full_path);
       // wait(NULL);
       waitpid(process, &status, 0);
       if (!WIFEXITED(status)) {
-        snprintf(output, 1024, "Parent: Child exited abnormally with status code %d\n", WEXITSTATUS(status));
+        printf("Parent: Child exited abnormally with status code %d\n", WEXITSTATUS(status));
       }
-      return output;
     }
   } else {
-    int len = strlen(args[0]) + 21;
-    output = (char*)malloc(sizeof(char) * len);
-    snprintf(output, len, "%s: command not found\n", args[0]);
-    return output;
+    const char** cursor = output_stream;
+    if (!cursor) { // empty redirection
+      printf("%s: command not found\n", args[0]);
+      return;
+    }
+
+    while (*cursor) {
+      int fd = open(*cursor, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      FILE* file_ptr = fopen(*cursor, "w");
+      if (!file_ptr) {
+        printf("Failed to open file parent: %s\n", *cursor);
+      } else {
+        fprintf(file_ptr, "%s: command not found\n", args[0]);
+      }
+      fclose(file_ptr);
+      cursor++;
+    }
   }
 }

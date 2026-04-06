@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "echo.h"
 #include "global_vars.h"
@@ -19,7 +20,7 @@ void executeCommand(char* input) {
   // extract command
   char command[1024];
   struct Argument* args = parse_args(input);
-  char* output;
+  char* output = NULL;
   if (!args) { // parsing failed
     printf("Failed to parse command: %s\n", input);
     return;
@@ -35,12 +36,12 @@ void executeCommand(char* input) {
   } else if (strcmp(command, "cd") == 0) {
     output = cd(args->arguments[1]);
   } else {
-    output = execute_bin((const char* const*)args->arguments);
+    execute_bin((const char**)args->arguments, (const char**)args->output_terminals);
   }
 
-  if (args->output_terminals[0] == NULL) {
+  if (output && args->output_terminals[0] == NULL) {
     printf("%s", output);
-  } else {
+  } else if (output) {
     char** output_terminals = args->output_terminals;
     while (*output_terminals != NULL) {
       FILE* output_file = fopen(*output_terminals++, "w");
@@ -48,7 +49,7 @@ void executeCommand(char* input) {
         printf("Couldn't open %s. Skipping this file...\n", *output_terminals);
         continue;
       }
-      fprintf(output_file, "%s", output);
+      fputs(output, output_file);
       fclose(output_file);
     }
   }
@@ -57,6 +58,7 @@ void executeCommand(char* input) {
   free(args->arguments);
   free(args->output_terminals);
   free(args);
+  free(output);
 }
 
 int main(int argc, char *argv[]) {

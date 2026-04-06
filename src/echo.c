@@ -16,7 +16,7 @@ char* echo(const char** arguments) {
     index += (n + 1);
   }
 
-  output[index++] = '\n';
+  output[index - 1] = '\n';
   output[index] = '\0';
   return output;
 }
