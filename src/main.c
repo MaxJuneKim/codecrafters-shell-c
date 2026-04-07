@@ -11,6 +11,7 @@
 #include "parse_arg.h"
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
+#include "cat.h"
 
 void executeCommand(char* input) {
   if (*input == '\0') { // empty command
@@ -35,6 +36,8 @@ void executeCommand(char* input) {
     output = pwd();
   } else if (strcmp(command, "cd") == 0) {
     output = cd(args->arguments[1]);
+  } else if (strcmp(command, "cat") == 0) {
+    cat(args->arguments[1]);
   } else {
     execute_bin((const char**)args->arguments, (const char**)args->output_terminals);
   }
