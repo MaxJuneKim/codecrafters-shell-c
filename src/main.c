@@ -27,6 +27,10 @@ void executeCommand(char* input) {
     return;
   }
   strcpy(command, args->arguments[0]);
+  // int argi = 0;
+  // for (char **arg = args->arguments; *arg != NULL; argi++, arg++) {
+  //   printf("TOKEN[%d] = |%s|\n", argi, *arg);
+  // }
 
   if (strcmp(command, "echo") == 0) {
     output = echo((const char**)args->arguments);
@@ -36,9 +40,11 @@ void executeCommand(char* input) {
     output = pwd();
   } else if (strcmp(command, "cd") == 0) {
     output = cd(args->arguments[1]);
-  } else if (strcmp(command, "cat") == 0) {
-    cat(args->arguments[1]);
-  } else {
+  } 
+  // else if (strcmp(command, "cat") == 0) {
+  //   cat(args->arguments[1]);
+  // } 
+  else {
     execute_bin((const char**)args->arguments, (const char**)args->output_terminals);
   }
 

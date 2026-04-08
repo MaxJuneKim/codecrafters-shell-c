@@ -93,16 +93,15 @@ struct Argument* parse_args(const char* raw_args) {
       continue;
     } else if (*cursor == '~') { // expanding home directory
       const char* home_dir = getenv("HOME");
-      // while (*home_dir != '\0') {
-      //   result->arguments[arg_count][cur_arg_index++] = *home_dir++;
-      // }
       strcpy(result->arguments[arg_count] + cur_arg_index, home_dir);
-      cursor++;
+      cursor++; 
+      cur_arg_index += strlen(home_dir);
       continue;
     }
     result->arguments[arg_count][cur_arg_index++] = *cursor++;
   }
 
+  result->arguments[arg_count][cur_arg_index] = '\0';
   result->arguments[++arg_count] = NULL;
   result->output_terminals[terminals_count] = NULL;
   return result;

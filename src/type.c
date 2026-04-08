@@ -15,7 +15,7 @@ char* executeType(const char* argCommand) {
   for (int i = 0; i < total_commands; i++) { // For each builtin shell,
     // compare argument command to the current builtin shell. If match, print "shell builtin" and return
     if (strcmp(argCommand, commands[i]) == 0) {
-      snprintf(output, strlen(argCommand) + 20, "%s is a shell builtin", argCommand);
+      snprintf(output, strlen(argCommand) + 21, "%s is a shell builtin\n", argCommand);
       return output;
     }
   }
@@ -24,10 +24,10 @@ char* executeType(const char* argCommand) {
   char* exec_loc = locate_bin(argCommand);
   if (exec_loc) {
     // TODO: add safety measure to cover the case where there might not be enough room in output string 
-    int success = snprintf(output, strlen(argCommand) + strlen(exec_loc) + 5, "%s is %s", argCommand, exec_loc);
+    int success = snprintf(output, strlen(argCommand) + strlen(exec_loc) + 6, "%s is %s\n", argCommand, exec_loc);
     free(exec_loc);
   } else { // if not, print "not found"
-    snprintf(output, strlen(argCommand) + 12, "%s: not found", argCommand);
+    snprintf(output, strlen(argCommand) + 13, "%s: not found\n", argCommand);
   }
   return output;
 }

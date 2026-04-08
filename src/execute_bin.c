@@ -39,7 +39,7 @@ void execute_bin(const char** args, const char** output_stream) {
     }
   } else {
     const char** cursor = output_stream;
-    if (!cursor) { // empty redirection
+    if (!(*cursor)) { // empty redirection
       printf("%s: command not found\n", args[0]);
       return;
     }
