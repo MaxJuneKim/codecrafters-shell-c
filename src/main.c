@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "echo.h"
 #include "global_vars.h"
@@ -11,6 +12,17 @@
 #include "parse_arg.h"
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
+
+// TODO: use this struct and enum to distinguish between stdout and stderr for builtin commands
+// enum Output_Type {
+//   STDOUT,
+//   STDERR
+// };
+
+// struct Output {
+//   char* output_string;
+//   enum Output_Type type;
+// };
 
 void executeCommand(char* input) {
   if (*input == '\0') { // empty command
@@ -27,6 +39,12 @@ void executeCommand(char* input) {
   }
   strcpy(command, args->arguments[0]);
 
+  char** err_redirect = args->error_redirect;
+  while (*err_redirect) {
+    int output_file = open(*err_redirect++, O_CREAT | O_TRUNC, 0644);
+    close(output_file);
+  }
+
   if (strcmp(command, "echo") == 0) {
     output = echo((const char**)args->arguments);
   } else if (strcmp(command, "type") == 0) {
@@ -36,7 +54,7 @@ void executeCommand(char* input) {
   } else if (strcmp(command, "cd") == 0) {
     output = cd(args->arguments[1]);
   } else {
-    execute_bin((const char**)args->arguments, (const char**)args->output_terminals);
+    execute_bin(args);
   }
 
   if (output && args->output_terminals[0] == NULL) {
@@ -44,11 +62,12 @@ void executeCommand(char* input) {
   } else if (output) {
     char** output_terminals = args->output_terminals;
     while (*output_terminals != NULL) {
-      FILE* output_file = fopen(*output_terminals++, "w");
+      FILE* output_file = fopen(*output_terminals, "w");
       if (!output_file) {
         printf("Couldn't open %s. Skipping this file...\n", *output_terminals);
         continue;
       }
+      output_terminals++;
       fputs(output, output_file);
       fclose(output_file);
     }
@@ -57,6 +76,7 @@ void executeCommand(char* input) {
   // deallocating
   free(args->arguments);
   free(args->output_terminals);
+  free(args->error_redirect);
   free(args);
   free(output);
 }

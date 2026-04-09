@@ -10,22 +10,28 @@
 #include "locate_bin.h"
 #include "parse_arg.h"
 
-void execute_bin(const char** args, const char** output_stream) {
-  char* full_path = locate_bin(args[0]);
+void execute_bin(const struct Argument* arguments) {
+  char* full_path = locate_bin(arguments->arguments[0]);
 
   if (full_path) {
     pid_t process = fork();
     if (process == 0) { // child process
-      const char** cursor = output_stream;
+      char** cursor = arguments->output_terminals;
       while (*cursor) {
         int fd = open(*cursor, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (dup2(fd, STDOUT_FILENO) == -1) { // redirecting stdout to output_stream file(s)
-          printf("Failed to open file: %s\n", *cursor);
-        };
+        dup2(fd, STDOUT_FILENO); // redirecting stdout to output_stream file(s)
         close(fd);
         cursor++;
       }
-      execv(full_path, (char* const*)args);
+
+      cursor = arguments->error_redirect;
+      while (*cursor) { // redirecting stderror 
+        int fd = open(*cursor, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        dup2(fd, STDERR_FILENO);
+        close(fd);
+        cursor++;
+      }
+      execv(full_path, (char* const*)arguments->arguments);
       perror("execvp failed");
       exit(1);
     } else { // parent process
@@ -38,19 +44,21 @@ void execute_bin(const char** args, const char** output_stream) {
       }
     }
   } else {
-    const char** cursor = output_stream;
-    if (!(*cursor)) { // empty redirection
-      printf("%s: command not found\n", args[0]);
+    free(full_path);
+    char** cursor = arguments->output_terminals;
+    if (!(*cursor)) { // If there's no redirected output file, print to stdout
+      printf("%s: command not found\n", arguments->arguments[0]);
       return;
-    }
+    } 
 
-    while (*cursor) {
+    while (*cursor) { // print to redirected output file(s)
       int fd = open(*cursor, O_WRONLY | O_CREAT | O_TRUNC, 0644);
       FILE* file_ptr = fopen(*cursor, "w");
       if (!file_ptr) {
-        printf("Failed to open file parent: %s\n", *cursor);
+        printf("Failed to open file: %s\n", *cursor);
+        printf("%s: command not found\n", arguments->arguments[0]);
       } else {
-        fprintf(file_ptr, "%s: command not found\n", args[0]);
+        fprintf(file_ptr, "%s: command not found\n", arguments->arguments[0]);
       }
       fclose(file_ptr);
       cursor++;

@@ -17,22 +17,27 @@ static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_ar
 // It will treat every character within enclosing single quotes literally. within enclosing double quotes, some special characters will be interpreted
 // A string after > will be treated as name of the file that output of this program should be redirected to
 struct Argument* parse_args(const char* raw_args) {
+  // TODO: add safety measure when result has not enough room for all the arguments, output_terminals, and sources
   struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
   result->arguments = (char**)malloc(sizeof(char*) * 1024);
   result->arguments[0] = (char*)malloc(sizeof(char) * 256);
   result->output_terminals = (char**)malloc(sizeof(char*) * 1024);
+  // TODO: Decide default value for leftover room for sources
+  result->error_redirect = (char**)malloc(sizeof(char*) * 64);
 
   const char* cursor = raw_args;
   int arg_count = 0;
   int cur_arg_index = 0;
   int terminals_count = 0;
   int cur_terminals_index = 0;
+  int err_redirect_count = 0;
+  int err_redirect_index = 0;
 
   while (*cursor != '\0') {
     if (*cursor == ' ') {
       while (*cursor == ' ') cursor++; // skipping multiple whitespaces
 
-      if (*cursor != '>' && (*cursor != '1' || cursor[1] != '>')) { 
+      if (*cursor != '>' && (*cursor != '1' || cursor[1] != '>') && (*cursor != '2' || cursor[1] != '>')) { 
         result->arguments[arg_count++][cur_arg_index] = '\0';
         result->arguments[arg_count] = (char*)malloc(sizeof(char) * 256);
         cur_arg_index = 0;
@@ -71,6 +76,7 @@ struct Argument* parse_args(const char* raw_args) {
           if (!literals_single_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
             free(result->arguments);
             free(result->output_terminals);
+            free(result->error_redirect);
             free(result);
             return NULL; // "Invalid single quote usage: Failed to parse"
           } 
@@ -80,6 +86,7 @@ struct Argument* parse_args(const char* raw_args) {
           if (!literals_double_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
             free(result->arguments);
             free(result->output_terminals);
+            free(result->error_redirect);
             free(result);
             return NULL; // "Invalid double quote usage: Failed to parse"
           }
@@ -90,6 +97,41 @@ struct Argument* parse_args(const char* raw_args) {
         result->output_terminals[terminals_count][cur_terminals_index++] = *cursor++;
       }
       result->output_terminals[terminals_count++][cur_terminals_index] = '\0';
+      continue;
+    } else if ((*cursor == '2' && cursor[1] == '>')) {
+      cursor += *cursor == '>' ? 1 : 2;
+      // result->output_terminals[terminals_count] = (char*)malloc(sizeof(char) * 256);
+      result->error_redirect[err_redirect_count] = (char*)malloc(sizeof(char) * 256);
+      err_redirect_index = 0;
+      while (*cursor == ' ') cursor++; // skip whitespaces
+      while (*cursor != ' ' && *cursor != '\0' && *cursor != '>') {
+        // account for single and double quote
+        if (*cursor == '\'') {
+          cursor++;
+          if (!literals_single_quote_open(result->error_redirect[err_redirect_count] + err_redirect_index, &cursor, &err_redirect_index)) {
+            free(result->arguments);
+            free(result->output_terminals);
+            free(result->error_redirect);
+            free(result);
+            return NULL; // "Invalid single quote usage: Failed to parse"
+          } 
+          continue;
+        } else if (*cursor == '\"') {
+          cursor++;
+          if (!literals_double_quote_open(result->error_redirect[err_redirect_count] + err_redirect_index, &cursor, &err_redirect_index)) {
+            free(result->arguments);
+            free(result->output_terminals);
+            free(result->error_redirect);
+            free(result);
+            return NULL; // "Invalid double quote usage: Failed to parse"
+          }
+          continue;
+        } else if (*cursor == '\\') {
+          cursor++;
+        }
+        result->error_redirect[err_redirect_count][err_redirect_index++] = *cursor++;
+      }
+      result->error_redirect[err_redirect_count++][err_redirect_index] = '\0';
       continue;
     } else if (*cursor == '~') { // expanding home directory
       const char* home_dir = getenv("HOME");
