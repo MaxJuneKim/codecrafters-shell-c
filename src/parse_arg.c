@@ -4,6 +4,19 @@
 
 #include "parse_arg.h"
 
+enum TOKEN_TYPE {
+  ARG,
+  STDOUT_REDIR,
+  STDERR_REDIR
+};
+
+struct TOKEN {
+  char* token;
+  enum TOKEN_TYPE token_type;
+};
+
+// helper functions
+
 // treat every character in single quotes literally, including delimiters.
 // If it successfully finished reading characters in the enclosing double quotes, it will return true. otherwise, false
 static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor);
@@ -13,164 +26,157 @@ static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_ar
 // If it successfully finished reading characters in the enclosing double quotes, it will return true. otherwise, false
 static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor);
 
+// check if the current character is a delimeter and current token should end
+static bool is_delimeter(const char* cursor);
+
+// Get next token, which could be either normal argument, output redirect destination, or error redirect destination
+// Return newly malloc'd string that contains the expanded, full version of each argument. If parsing has failed, return null
+static struct TOKEN* get_next_token(const char** cursor);
+
+// helper function to get_next_token. Consume next character(s) and return number of characters were appended as result. 
+// Operate under assumption that quote is not open. There may be cases where more than one character is consumed
+// returning pointer to the next character to be consumed might be an idea as well
+static int consume_next_character(char* dest, const char** cursor);
+
+// header defined functions
+void free_arg(struct Argument* args) {
+  char** cursor = args->arguments;
+  while (*cursor) free(*cursor++);
+  free(args->arguments);
+
+  cursor = args->error_redirect;
+  while (*cursor) free(*cursor++);
+  free(args->error_redirect);
+
+  cursor = args->output_terminals;
+  while (*cursor) free(*cursor++);
+  free(args->output_terminals);
+
+  free(args);
+}
+
 // Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
 // It will treat every character within enclosing single quotes literally. within enclosing double quotes, some special characters will be interpreted
 // A string after > will be treated as name of the file that output of this program should be redirected to
 struct Argument* parse_args(const char* raw_args) {
-  // TODO: add safety measure when result has not enough room for all the arguments, output_terminals, and sources
+  const char* cursor = raw_args;
   struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
-  result->arguments = (char**)malloc(sizeof(char*) * 1024);
-  result->arguments[0] = (char*)malloc(sizeof(char) * 256);
-  result->output_terminals = (char**)malloc(sizeof(char*) * 1024);
-  // TODO: Decide default value for leftover room for sources
+  // TODO: Decide default value for leftover room for sources and implement auto resizing for safety measure
+  result->arguments = (char**)malloc(sizeof(char*) * 256);
+  result->output_terminals = (char**)malloc(sizeof(char*) * 64);
   result->error_redirect = (char**)malloc(sizeof(char*) * 64);
 
-  const char* cursor = raw_args;
-  int arg_count = 0;
-  int cur_arg_index = 0;
-  int terminals_count = 0;
-  int cur_terminals_index = 0;
-  int err_redirect_count = 0;
-  int err_redirect_index = 0;
+  int arg_index = 0;
+  int stdout_redir_index = 0;
+  int stderr_redir_index = 0;
 
   while (*cursor != '\0') {
-    if (*cursor == ' ') {
-      while (*cursor == ' ') cursor++; // skipping multiple whitespaces
+    struct TOKEN* next_token = get_next_token(&cursor);
 
-      if (*cursor != '>' && (*cursor != '1' || cursor[1] != '>') && (*cursor != '2' || cursor[1] != '>')) { 
-        result->arguments[arg_count++][cur_arg_index] = '\0';
-        result->arguments[arg_count] = (char*)malloc(sizeof(char) * 256);
-        cur_arg_index = 0;
-      }
-      // cursor++;
-      continue;
-    } else if (*cursor == '\'') { 
-      cursor++;
-      if (!literals_single_quote_open(result->arguments[arg_count] + cur_arg_index, &cursor, &cur_arg_index)) {
-        free(result->arguments);
-        free(result->output_terminals);
-        free(result);
-        return NULL;
-      }
-      continue;
-    } else if (*cursor == '\"') {
-      cursor++;
-      if (!literals_double_quote_open(result->arguments[arg_count] + cur_arg_index, &cursor, &cur_arg_index)) {
-        free(result->arguments);
-        free(result->output_terminals);
-        free(result);
-        return NULL;
-      }
-      continue;
-    } else if (*cursor == '\\') {
-      cursor++;
-    } else if (*cursor == '>' || (*cursor == '1' && cursor[1] == '>')) { // output redirector. assume it will be only one >
-      cursor += *cursor == '>' ? 1 : 2;
-      result->output_terminals[terminals_count] = (char*)malloc(sizeof(char) * 256);
-      cur_terminals_index = 0;
-      while (*cursor == ' ') cursor++; // skip whitespaces
-      while (*cursor != ' ' && *cursor != '\0' && *cursor != '>') {
-        // account for single and double quote
-        if (*cursor == '\'') {
-          cursor++;
-          if (!literals_single_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
-            free(result->arguments);
-            free(result->output_terminals);
-            free(result->error_redirect);
-            free(result);
-            return NULL; // "Invalid single quote usage: Failed to parse"
-          } 
-          continue;
-        } else if (*cursor == '\"') {
-          cursor++;
-          if (!literals_double_quote_open(result->output_terminals[terminals_count] + cur_terminals_index, &cursor, &cur_terminals_index)) {
-            free(result->arguments);
-            free(result->output_terminals);
-            free(result->error_redirect);
-            free(result);
-            return NULL; // "Invalid double quote usage: Failed to parse"
-          }
-          continue;
-        } else if (*cursor == '\\') {
-          cursor++;
-        }
-        result->output_terminals[terminals_count][cur_terminals_index++] = *cursor++;
-      }
-      result->output_terminals[terminals_count++][cur_terminals_index] = '\0';
-      continue;
-    } else if ((*cursor == '2' && cursor[1] == '>')) {
-      cursor += *cursor == '>' ? 1 : 2;
-      // result->output_terminals[terminals_count] = (char*)malloc(sizeof(char) * 256);
-      result->error_redirect[err_redirect_count] = (char*)malloc(sizeof(char) * 256);
-      err_redirect_index = 0;
-      while (*cursor == ' ') cursor++; // skip whitespaces
-      while (*cursor != ' ' && *cursor != '\0' && *cursor != '>') {
-        // account for single and double quote
-        if (*cursor == '\'') {
-          cursor++;
-          if (!literals_single_quote_open(result->error_redirect[err_redirect_count] + err_redirect_index, &cursor, &err_redirect_index)) {
-            free(result->arguments);
-            free(result->output_terminals);
-            free(result->error_redirect);
-            free(result);
-            return NULL; // "Invalid single quote usage: Failed to parse"
-          } 
-          continue;
-        } else if (*cursor == '\"') {
-          cursor++;
-          if (!literals_double_quote_open(result->error_redirect[err_redirect_count] + err_redirect_index, &cursor, &err_redirect_index)) {
-            free(result->arguments);
-            free(result->output_terminals);
-            free(result->error_redirect);
-            free(result);
-            return NULL; // "Invalid double quote usage: Failed to parse"
-          }
-          continue;
-        } else if (*cursor == '\\') {
-          cursor++;
-        }
-        result->error_redirect[err_redirect_count][err_redirect_index++] = *cursor++;
-      }
-      result->error_redirect[err_redirect_count++][err_redirect_index] = '\0';
-      continue;
-    } else if (*cursor == '~') { // expanding home directory
-      const char* home_dir = getenv("HOME");
-      strcpy(result->arguments[arg_count] + cur_arg_index, home_dir);
-      cursor++; 
-      cur_arg_index += strlen(home_dir);
-      continue;
+    if (!next_token) { // parsing has failed
+      free_arg(result);
+      return NULL;
     }
-    result->arguments[arg_count][cur_arg_index++] = *cursor++;
+    if (*next_token->token == '\0') { continue; } // skipping empty token
+
+    switch (next_token->token_type) {
+      case ARG:
+        result->arguments[arg_index++] = next_token->token;
+        break;
+      case STDOUT_REDIR:
+        result->output_terminals[stdout_redir_index++] = next_token->token;
+        break;
+      case STDERR_REDIR:
+        result->error_redirect[stderr_redir_index++] = next_token->token;
+        break;
+    }
   }
 
-  result->arguments[arg_count][cur_arg_index] = '\0';
-  result->arguments[++arg_count] = NULL;
-  result->output_terminals[terminals_count] = NULL;
+  result->arguments[arg_index] = NULL;
+  result->output_terminals[stdout_redir_index] = NULL;
+  result->error_redirect[stderr_redir_index] = NULL;
   return result;
 }
 
-// TODO: try to implement parse_args so it uses less lines of codes
-// struct Argument* parse_args_v2(const char* raw_args) {
-//   struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
-//   result->arguments = (char**)malloc(sizeof(char*) * 1024);
-//   result->output_terminals = (char**)malloc(sizeof(char*) * 1024);
+static struct TOKEN* get_next_token(const char** cursor) {
+  struct TOKEN* result = (struct TOKEN*)malloc(sizeof(struct TOKEN));
+  result->token = (char*)malloc(sizeof(char) * 256);
+  int index = 0;
 
-//   while (*cursor != '\0') {
-//     // when reading a character,
-//     /*
-//     skipping whitespaces?
-//     if single quote is open -> treat this character literally
-//     if double quote is open -> treat this character literally, if not one of the exceptions: ',",$,\n,\
-//     if single quote is opening/closing -> invert single_quote_open
-//     if double quote is opening/closing
+  // skip whitespaces
+  while (**cursor == ' ') (*cursor)++;
 
-//     if current character goes to arguments
-//     if current character goes to output_terminals
+  // Decide if current token should be normal arg, stdout redirector, or stderr redirector
+  if (**cursor == '>' || (**cursor == '1' && (*cursor)[1] == '>')) {
+    result->token_type = STDOUT_REDIR;
+    (*cursor) += **cursor == '>' ? 1 : 2;
+    while (**cursor == ' ') (*cursor)++;
+  // TODO: investigate if (*cursor)[1] could be possibly dangerous? add safety measure if so. If we know that we include '\0', it might not be 
+  } else if (**cursor == '2' && (*cursor)[1] == '>') { 
+    result->token_type = STDERR_REDIR;
+    (*cursor) += 2;
+    while (**cursor == ' ') (*cursor)++;
+  } else {
+    result->token_type = ARG;
+  }
 
-//     process by character? process by delimiter?
-//     */
-//   }
-// }
+  // Decision: When I encounter single or double quote, do I deal with the characters enclosed one by one in a next loop? or just take care
+  // of them at once so that I don't have to worry about single or double quote being open in the loop? For now, let's go with the latter.
+  while (!is_delimeter(*cursor)) {
+    if (**cursor == '\'') {
+      (*cursor)++;
+      if (!literals_single_quote_open(result->token + index, cursor, &index)) {
+        free(result->token);
+        free(result);
+        return NULL;
+      }
+      continue;
+    } else if (**cursor == '\"') {
+      (*cursor)++;
+      if (!literals_double_quote_open(result->token + index, cursor, &index)) {
+        free(result->token);
+        free(result);
+        return NULL;
+      }
+      continue;
+    }
+    index += consume_next_character(result->token + index, cursor);
+  } 
+
+  result->token[index] = '\0';
+  return result;
+}
+
+static int consume_next_character(char* dest, const char** cursor) {
+  switch (**cursor) { // If we need to append special characters that can be expanded, add here
+  // These cases are dismissed for now as we assume quote should not be open. Should we decide otherwise, we would open this later.
+  // case '\'': 
+  //   break;
+  // case '\"':
+  //   break;
+  case '\\': // if encounter \ character, treat next character literally
+    *dest = *++(*cursor);
+    (*cursor)++;
+    return 1;
+  case '~': // consuming home directory
+    char* home_dir = getenv("HOME");
+    strcpy(dest, home_dir);
+    (*cursor)++;
+    return strlen(home_dir);
+  default: // normal character
+    *dest = *(*cursor)++;
+    return 1;
+  }
+}
+
+static bool is_delimeter(const char* cursor) {
+  // if next character is one of the followings:
+  // '\0': terminating null character
+  // ' ': empty space
+  // > or 1>: stdout redirect operator
+  // 2> : stderr redirect operator
+  return *cursor == '\0' ||  *cursor == ' ' || *cursor == '>' || (*cursor == '1' && cursor[1] == '>') || (*cursor == '2' && cursor[1] == '>');
+}
 
 static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {
   char* debug = dest;
