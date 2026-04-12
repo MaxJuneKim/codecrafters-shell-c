@@ -4,19 +4,21 @@
 
 #include "echo.h"
 
-char* echo(const char** arguments) {
+struct Output echo(const char** arguments) {
   const char** str_cursor = arguments + 1;
-  char* output = (char*)malloc(sizeof(char) * 2048);
+  struct Output output;
+  output.output = (char*)malloc(sizeof(char) * 2048);
+  output.error = NULL;
   int index = 0;
 
   while (*str_cursor != NULL) {
     int n = strlen(*str_cursor);
-    snprintf(output + index, n + 1, "%s", *str_cursor++);
-    output[index + n] = ' ';
+    snprintf(output.output + index, n + 1, "%s", *str_cursor++);
+    output.output[index + n] = ' ';
     index += (n + 1);
   }
 
-  output[index - 1] = '\n';
-  output[index] = '\0';
+  output.output[index - 1] = '\n';
+  output.output[index] = '\0';
   return output;
 }

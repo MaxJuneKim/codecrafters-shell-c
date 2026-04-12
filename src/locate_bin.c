@@ -5,7 +5,6 @@
 
 #include "locate_bin.h"
 
-// Legacy Code. Not deleted for Academic purpose of demonstrating using preprocessors to detect current operating system.
 // REVISIT NOTE: The way I remember is, processors on different operating systems have different set of defined variables
 // Windows preprocessor would have __WIN32 and __WIN64 defined but not MAC_OS or Linux preprocessor for example.
 // This is how we can tell which operating system we are running on.
@@ -29,7 +28,7 @@ char* locate_bin(const char* argCommand) {
   #endif
 
   char* cur_path = strtok(all_paths, delimiter);
-  char* cur_full_path = (char*)malloc(sizeof(char) * 1024);
+  char* cur_full_path = (char*)malloc(sizeof(char) * 256);
   
   while (cur_path != NULL) {
     // check if the file exists and permission is executable

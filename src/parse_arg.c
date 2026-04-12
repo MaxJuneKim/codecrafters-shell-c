@@ -7,7 +7,9 @@
 enum TOKEN_TYPE {
   ARG,
   STDOUT_REDIR,
-  STDERR_REDIR
+  STDERR_REDIR,
+  STDOUT_REDIR_APPEND,
+  STDERR_REDIR_APPEND
 };
 
 struct TOKEN {
@@ -26,9 +28,6 @@ static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_ar
 // If it successfully finished reading characters in the enclosing double quotes, it will return true. otherwise, false
 static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor);
 
-// check if the current character is a delimeter and current token should end
-static bool is_delimeter(const char* cursor);
-
 // Get next token, which could be either normal argument, output redirect destination, or error redirect destination
 // Return newly malloc'd string that contains the expanded, full version of each argument. If parsing has failed, return null
 static struct TOKEN* get_next_token(const char** cursor);
@@ -37,6 +36,21 @@ static struct TOKEN* get_next_token(const char** cursor);
 // Operate under assumption that quote is not open. There may be cases where more than one character is consumed
 // returning pointer to the next character to be consumed might be an idea as well
 static int consume_next_character(char* dest, const char** cursor);
+
+// check if the current character is a delimeter and current token should end
+// '\0': terminating null character
+// ' ': empty space
+// > or 1>: stdout redirect operator
+// 2> : stderr redirect operator
+static bool is_delimeter(const char* cursor);
+
+static bool is_output_redir(const char* cursor);
+
+static bool is_err_redir(const char* cursor);
+
+static bool is_output_appd_redir(const char* cursor);
+
+static bool is_err_appd_redir(const char* cursor);
 
 // header defined functions
 void free_arg(struct Argument* args) {
@@ -52,6 +66,14 @@ void free_arg(struct Argument* args) {
   while (*cursor) free(*cursor++);
   free(args->output_terminals);
 
+  cursor = args->output_append_redirect;
+  while (*cursor) free(*cursor++);
+  free(args->output_append_redirect);
+
+  cursor = args->error_append_redirect;
+  while (*cursor) free(*cursor++);
+  free(args->error_append_redirect);
+
   free(args);
 }
 
@@ -65,10 +87,14 @@ struct Argument* parse_args(const char* raw_args) {
   result->arguments = (char**)malloc(sizeof(char*) * 256);
   result->output_terminals = (char**)malloc(sizeof(char*) * 64);
   result->error_redirect = (char**)malloc(sizeof(char*) * 64);
+  result->output_append_redirect = (char**)malloc(sizeof(char*) * 64);
+  result->error_append_redirect = (char**)malloc(sizeof(char*) * 64);
 
   int arg_index = 0;
   int stdout_redir_index = 0;
   int stderr_redir_index = 0;
+  int stdout_append_redir_index = 0;
+  int stderr_append_redir_index = 0;
 
   while (*cursor != '\0') {
     struct TOKEN* next_token = get_next_token(&cursor);
@@ -89,12 +115,31 @@ struct Argument* parse_args(const char* raw_args) {
       case STDERR_REDIR:
         result->error_redirect[stderr_redir_index++] = next_token->token;
         break;
+      case STDOUT_REDIR_APPEND:
+        result->output_append_redirect[stdout_append_redir_index++] = next_token->token;
+        break;
+      case STDERR_REDIR_APPEND:
+        result->error_append_redirect[stderr_append_redir_index++] = next_token->token;
+        break;
     }
   }
 
+  // TODO: hmm..... I want to make this cleaner? I don't want to use 4 arrays just to do this
+  // I thought about restructuring Argument to 
+  /*
+  struct Argument {
+    char** argument;
+    struct Token* output_redirectors;
+  };
+  But then there would be no element in output_redirectors that uses ARG so that would be a waste maybe? anyway I don't like it
+  Plus the name "Token" wouldn't communicate this intention very well. I could rename it to Redirect_Type but then now it 
+  wouldn't communicate its purpose as tokenizer either?
+  */
   result->arguments[arg_index] = NULL;
   result->output_terminals[stdout_redir_index] = NULL;
   result->error_redirect[stderr_redir_index] = NULL;
+  result->output_append_redirect[stdout_append_redir_index] = NULL;
+  result->error_append_redirect[stderr_append_redir_index] = NULL;
   return result;
 }
 
@@ -106,17 +151,24 @@ static struct TOKEN* get_next_token(const char** cursor) {
   // skip whitespaces
   while (**cursor == ' ') (*cursor)++;
 
-  // Decide if current token should be normal arg, stdout redirector, or stderr redirector
-  if (**cursor == '>' || (**cursor == '1' && (*cursor)[1] == '>')) {
+  // Decide if current token should be normal arg, stdout, stderr, stdout append, or stderr append redirector
+  if (is_output_appd_redir(*cursor)) {
+    result->token_type = STDOUT_REDIR_APPEND;
+    (*cursor) += **cursor == '>' ? 2 : 3;
+    while (**cursor == ' ') (*cursor)++;
+  } else if (is_output_redir(*cursor)) { // append operator
     result->token_type = STDOUT_REDIR;
     (*cursor) += **cursor == '>' ? 1 : 2;
     while (**cursor == ' ') (*cursor)++;
-  // TODO: investigate if (*cursor)[1] could be possibly dangerous? add safety measure if so. If we know that we include '\0', it might not be 
-  } else if (**cursor == '2' && (*cursor)[1] == '>') { 
+  } else if (is_err_appd_redir(*cursor)) {
+    result->token_type = STDERR_REDIR_APPEND;
+    (*cursor) += 3;
+    while (**cursor == ' ') (*cursor)++;
+  } else if (is_err_redir(*cursor)) {
     result->token_type = STDERR_REDIR;
     (*cursor) += 2;
     while (**cursor == ' ') (*cursor)++;
-  } else {
+  }  else {
     result->token_type = ARG;
   }
 
@@ -170,11 +222,6 @@ static int consume_next_character(char* dest, const char** cursor) {
 }
 
 static bool is_delimeter(const char* cursor) {
-  // if next character is one of the followings:
-  // '\0': terminating null character
-  // ' ': empty space
-  // > or 1>: stdout redirect operator
-  // 2> : stderr redirect operator
   return *cursor == '\0' ||  *cursor == ' ' || *cursor == '>' || (*cursor == '1' && cursor[1] == '>') || (*cursor == '2' && cursor[1] == '>');
 }
 
@@ -206,3 +253,19 @@ static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_ar
 
   return *(*cursor_in_raw_args)++ == '\"';
 }
+
+static bool is_output_redir(const char* cursor) {
+  return *cursor == '>' || (*cursor == '1' && cursor[1] == '>');
+}
+
+static bool is_err_redir(const char* cursor) {
+  return *cursor == '2' && cursor[1] == '>';
+};
+
+static bool is_output_appd_redir(const char* cursor) {
+  return (*cursor == '>' && cursor[1] == '>') || (*cursor == '1' && cursor[1] == '>' && cursor[1] == '>');
+};
+
+static bool is_err_appd_redir(const char* cursor) {
+  return *cursor == '2' && cursor[1] == '>' && cursor[1] == '>';
+};

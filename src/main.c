@@ -26,22 +26,14 @@ void executeCommand(char* input) {
   // extract command
   char command[1024];
   struct Argument* args = parse_args(input);
-  char* output = NULL;
+  // char* output = NULL;
+  struct Output output;
   if (!args) { // parsing failed
     printf("Failed to parse command: %s\n", input);
     free_arg(args);
     return;
   }
   strcpy(command, args->arguments[0]);
-
-  // TODO: Try to implement behavior that would make more sense. Instead of bluntly creating a file, truly
-  // Redirect stderr fd to a different file descriptor. When builtin command faces failures, output to stderr
-  // instead of using printf();
-  char** err_redirect = args->error_redirect;
-  while (*err_redirect) {
-    int output_file = open(*err_redirect++, O_CREAT | O_TRUNC, 0644);
-    close(output_file);
-  }
 
   if (strcmp(command, "echo") == 0) {
     output = echo((const char**)args->arguments);
@@ -52,27 +44,71 @@ void executeCommand(char* input) {
   } else if (strcmp(command, "cd") == 0) {
     output = cd(args->arguments[1]);
   } else {
-    execute_bin(args);
+    output = execute_bin(args);
   }
 
-  if (output && args->output_terminals[0] == NULL) {
-    printf("%s", output);
-    free(output);
-  } else if (output) {
+  // TODO: This code is way too repetitive. Refactor it. One idea is in parse_args, return file_pointers to the redirectors instead of opening them here?
+  // outputting to stdout
+  if (output.output && args->output_terminals[0] == NULL && args->output_append_redirect[0] == NULL) {
+    printf("%s", output.output);
+    free(output.output);
+  } else {
     char** output_terminals = args->output_terminals;
     while (*output_terminals != NULL) {
       FILE* output_file = fopen(*output_terminals, "w");
       if (!output_file) {
-        printf("Couldn't open %s. Skipping this file...\n", *output_terminals);
+        printf("Couldn't open %s. Skipping this file...\n", *output_terminals++);
         continue;
       }
       output_terminals++;
-      fputs(output, output_file);
+      if (output.output) fputs(output.output, output_file);
       fclose(output_file);
     }
-    free(output);
+    char** output_append_redirect = args->output_append_redirect;
+    while (*output_append_redirect != NULL) {
+      FILE* output_file = fopen(*output_append_redirect, "a");
+      if (!output_file) {
+        printf("Couldn't open %s. Skipping this file...\n", *output_append_redirect++);
+        continue;
+      }
+      output_append_redirect++;
+      if (output.output) fputs(output.output, output_file);
+      fclose(output_file);
+    }
+    free(output.output);
   }
 
+  // outputting to error
+  if (output.error && args->error_redirect[0] == NULL && args->error_append_redirect[0] == NULL) {
+    // fprintf(stderr, output.error);
+    fputs(output.error, stderr);
+    free(output.error);
+  } else {
+    char** error_redirect = args->error_redirect;
+    while (*error_redirect != NULL) {
+      FILE* output_file = fopen(*error_redirect, "w");
+      if (!output_file) {
+        printf("Couldn't open %s. Skipping this file...\n", *error_redirect++);
+        continue;
+      }
+      error_redirect++;
+      if (output.error) fputs(output.error, output_file);
+      fclose(output_file);
+    }
+
+    char** error_append_redirect = args->error_append_redirect;
+    while (*error_append_redirect != NULL) {
+      FILE* output_file = fopen(*error_append_redirect, "a");
+      if (!output_file) {
+        printf("Couldn't open %s. Skipping this file...\n", *error_append_redirect++);
+        continue;
+      }
+      error_append_redirect++;
+      if (output.error) fputs(output.error, output_file);
+      fclose(output_file);
+    }
+    free(output.error);
+  }
   // deallocating
   free_arg(args);
 }
