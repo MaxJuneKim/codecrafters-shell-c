@@ -12,7 +12,10 @@
 #include "parse_arg.h"
 #include "types.h"
 
-struct Output execute_bin(const struct Argument* arguments) {
+// Receiving output and error from child process
+static char* receive_child_output(int fild);
+
+struct Output execute_bin(const struct Argument arguments) {
   int output_fild[2];
   int err_fild[2];
   pipe(output_fild);
@@ -27,9 +30,9 @@ struct Output execute_bin(const struct Argument* arguments) {
     close(output_fild[1]);
     close(err_fild[1]);
 
-    execvp(arguments->arguments[0], (char* const*)arguments->arguments);
+    execvp(arguments.arguments[0], (char* const*)arguments.arguments);
     if (errno == ENOENT) {
-      fprintf(stderr, "%s: command not found\n", arguments->arguments[0]);
+      fprintf(stderr, "%s: command not found\n", arguments.arguments[0]);
     } else {
       perror("execvp failed");
     }
@@ -38,44 +41,11 @@ struct Output execute_bin(const struct Argument* arguments) {
     close(output_fild[1]);
     close(err_fild[1]);
 
-    size_t capacity = 1024;
     struct Output output;
-    output.output = (char*)malloc(sizeof(char) * capacity);
-    output.error = (char*)malloc(sizeof(char) * capacity);
+    output.output = receive_child_output(output_fild[0]);
+    output.error = receive_child_output(err_fild[0]);
 
     int status;
-    size_t offset = 0;
-    size_t read_bytes;
-
-    while ((read_bytes = read(output_fild[0], output.output + offset, capacity - offset)) > 0) {
-      offset += read_bytes;
-      if (offset >= capacity) { // Reassign if output buffer runs out of capacity
-        capacity *= 2;
-        char* new_output_buffer = (char*)malloc(sizeof(char) * capacity);
-        strcpy(new_output_buffer, output.output);
-        free(output.output);
-        output.output = new_output_buffer;
-      }
-    }
-    output.output[offset] = '\0';
-    close(output_fild[0]);
-
-    offset = 0;
-    capacity = 1024;
-
-    while ((read_bytes = read(err_fild[0], output.error + offset, capacity - offset)) > 0) {
-      offset += read_bytes;
-      if (offset >= capacity) { // Reassign if error buffer runs out of capacity
-        capacity *= 2;
-        char* new_err_buffer = (char*)malloc(sizeof(char) * capacity);
-        strcpy(new_err_buffer, output.error);
-        free(output.error);
-        output.error = new_err_buffer;
-      }
-    }
-    output.error[offset] = '\0';
-    close(err_fild[0]);
-    
     // wait(NULL);
     waitpid(process, &status, 0);
     if (!WIFEXITED(status)) {
@@ -83,4 +53,26 @@ struct Output execute_bin(const struct Argument* arguments) {
     }
     return output;
   }
+}
+
+static char* receive_child_output(int fild) {
+  size_t offset = 0;
+  size_t read_bytes;
+  size_t capacity = 256;
+  char* result = (char*)malloc(sizeof(char) * capacity);
+
+  while ((read_bytes = read(fild, result + offset, capacity - offset)) > 0) {
+    offset += read_bytes;
+    if (offset >= capacity) { // Reassign if error buffer runs out of capacity
+      capacity *= 2;
+      char* new_buffer = (char*)malloc(sizeof(char) * capacity);
+      strcpy(new_buffer, result);
+      free(result);
+      result = new_buffer;
+    }
+  }
+
+  result[offset] = '\0';
+  close(fild);
+  return result;
 }

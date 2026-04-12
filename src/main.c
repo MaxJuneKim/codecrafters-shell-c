@@ -12,11 +12,23 @@
 #include "parse_arg.h"
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
+#include "types.h"
 
 // TODO: 
 // I'm facing plenty of cases where output of my local run and codecrafter testing are different.
 // I wonder if this is an OS issue because I am using Mac OS. Build this project in WSL as well and Windows if possible
 // and see if I can similar results 
+
+void write_to_files(FILE** file_ptrs, const char* output) {
+  while (*file_ptrs) {
+    if (output) fputs(output, *file_ptrs);
+    if (*file_ptrs == stdout || *file_ptrs == stderr) {
+      file_ptrs++;
+      continue;
+    }
+    fclose(*file_ptrs++);
+  }
+}
 
 void executeCommand(char* input) {
   if (*input == '\0') { // empty command
@@ -25,91 +37,34 @@ void executeCommand(char* input) {
 
   // extract command
   char command[1024];
-  struct Argument* args = parse_args(input);
+  struct Argument args = parse_args(input);
   // char* output = NULL;
   struct Output output;
-  if (!args) { // parsing failed
+  if (!args.arguments[0]) { // signal for parsing failed
     printf("Failed to parse command: %s\n", input);
-    free_arg(args);
     return;
   }
-  strcpy(command, args->arguments[0]);
 
-  if (strcmp(command, "echo") == 0) {
-    output = echo((const char**)args->arguments);
-  } else if (strcmp(command, "type") == 0) {
-    output = executeType(args->arguments[1]);
-  } else if (strcmp(command, "pwd") == 0) {
+  if (strcmp(args.arguments[0], "echo") == 0) {
+    output = echo((const char**)args.arguments);
+  } else if (strcmp(args.arguments[0], "type") == 0) {
+    output = executeType(args.arguments[1]);
+  } else if (strcmp(args.arguments[0], "pwd") == 0) {
     output = pwd();
-  } else if (strcmp(command, "cd") == 0) {
-    output = cd(args->arguments[1]);
+  } else if (strcmp(args.arguments[0], "cd") == 0) {
+    output = cd(args.arguments[1]);
   } else {
     output = execute_bin(args);
   }
 
   // TODO: This code is way too repetitive. Refactor it. One idea is in parse_args, return file_pointers to the redirectors instead of opening them here?
   // outputting to stdout
-  if (output.output && args->output_terminals[0] == NULL && args->output_append_redirect[0] == NULL) {
-    printf("%s", output.output);
-    free(output.output);
-  } else {
-    char** output_terminals = args->output_terminals;
-    while (*output_terminals != NULL) {
-      FILE* output_file = fopen(*output_terminals, "w");
-      if (!output_file) {
-        printf("Couldn't open %s. Skipping this file...\n", *output_terminals++);
-        continue;
-      }
-      output_terminals++;
-      if (output.output) fputs(output.output, output_file);
-      fclose(output_file);
-    }
-    char** output_append_redirect = args->output_append_redirect;
-    while (*output_append_redirect != NULL) {
-      FILE* output_file = fopen(*output_append_redirect, "a");
-      if (!output_file) {
-        printf("Couldn't open %s. Skipping this file...\n", *output_append_redirect++);
-        continue;
-      }
-      output_append_redirect++;
-      if (output.output) fputs(output.output, output_file);
-      fclose(output_file);
-    }
-    free(output.output);
-  }
-
-  // outputting to error
-  if (output.error && args->error_redirect[0] == NULL && args->error_append_redirect[0] == NULL) {
-    // fprintf(stderr, output.error);
-    fputs(output.error, stderr);
-    free(output.error);
-  } else {
-    char** error_redirect = args->error_redirect;
-    while (*error_redirect != NULL) {
-      FILE* output_file = fopen(*error_redirect, "w");
-      if (!output_file) {
-        printf("Couldn't open %s. Skipping this file...\n", *error_redirect++);
-        continue;
-      }
-      error_redirect++;
-      if (output.error) fputs(output.error, output_file);
-      fclose(output_file);
-    }
-
-    char** error_append_redirect = args->error_append_redirect;
-    while (*error_append_redirect != NULL) {
-      FILE* output_file = fopen(*error_append_redirect, "a");
-      if (!output_file) {
-        printf("Couldn't open %s. Skipping this file...\n", *error_append_redirect++);
-        continue;
-      }
-      error_append_redirect++;
-      if (output.error) fputs(output.error, output_file);
-      fclose(output_file);
-    }
-    free(output.error);
-  }
+  write_to_files(args.output_terminals, output.output);
+  write_to_files(args.error_terminals, output.error);
+  
   // deallocating
+  if (output.output) free(output.output);
+  if (output.error) free(output.error);
   free_arg(args);
 }
 

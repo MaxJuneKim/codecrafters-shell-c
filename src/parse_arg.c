@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -53,93 +54,57 @@ static bool is_output_appd_redir(const char* cursor);
 static bool is_err_appd_redir(const char* cursor);
 
 // header defined functions
-void free_arg(struct Argument* args) {
-  char** cursor = args->arguments;
+void free_arg(struct Argument args) {
+  char** cursor = args.arguments;
   while (*cursor) free(*cursor++);
-  free(args->arguments);
-
-  cursor = args->error_redirect;
-  while (*cursor) free(*cursor++);
-  free(args->error_redirect);
-
-  cursor = args->output_terminals;
-  while (*cursor) free(*cursor++);
-  free(args->output_terminals);
-
-  cursor = args->output_append_redirect;
-  while (*cursor) free(*cursor++);
-  free(args->output_append_redirect);
-
-  cursor = args->error_append_redirect;
-  while (*cursor) free(*cursor++);
-  free(args->error_append_redirect);
-
-  free(args);
+  free(args.arguments);
 }
 
 // Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
 // It will treat every character within enclosing single quotes literally. within enclosing double quotes, some special characters will be interpreted
 // A string after > will be treated as name of the file that output of this program should be redirected to
-struct Argument* parse_args(const char* raw_args) {
+struct Argument parse_args(const char* raw_args) {
   const char* cursor = raw_args;
-  struct Argument* result = (struct Argument*)malloc(sizeof(struct Argument));
+  struct Argument result; // = (struct Argument*)malloc(sizeof(struct Argument));
   // TODO: Decide default value for leftover room for sources and implement auto resizing for safety measure
-  result->arguments = (char**)malloc(sizeof(char*) * 256);
-  result->output_terminals = (char**)malloc(sizeof(char*) * 64);
-  result->error_redirect = (char**)malloc(sizeof(char*) * 64);
-  result->output_append_redirect = (char**)malloc(sizeof(char*) * 64);
-  result->error_append_redirect = (char**)malloc(sizeof(char*) * 64);
+  result.arguments = (char**)malloc(sizeof(char*) * 256);
+  result.output_terminals = (FILE**)malloc(sizeof(FILE*) * 64);
+  result.error_terminals = (FILE**)malloc(sizeof(FILE*) * 64);
+  result.output_terminals[0] = stdout;
+  result.error_terminals[0] = stderr;
 
   int arg_index = 0;
-  int stdout_redir_index = 0;
-  int stderr_redir_index = 0;
-  int stdout_append_redir_index = 0;
-  int stderr_append_redir_index = 0;
+  int output_index = 0;
+  int error_index = 0;
 
   while (*cursor != '\0') {
     struct TOKEN* next_token = get_next_token(&cursor);
-
-    if (!next_token) { // parsing has failed
-      free_arg(result);
-      return NULL;
+    if (!next_token || *next_token->token == '\0') { // parsing has failed
+      result.arguments[0] = NULL;
+      result.output_terminals[0] = NULL;
+      result.error_terminals[0] = NULL;
+      return result;
     }
-    if (*next_token->token == '\0') { continue; } // skipping empty token
 
+    char mode[2];
     switch (next_token->token_type) {
       case ARG:
-        result->arguments[arg_index++] = next_token->token;
+        result.arguments[arg_index++] = next_token->token;
         break;
-      case STDOUT_REDIR:
-        result->output_terminals[stdout_redir_index++] = next_token->token;
+      case STDOUT_REDIR: case STDOUT_REDIR_APPEND: 
+        strcpy(mode, next_token->token_type == STDOUT_REDIR ? "w" : "a");
+        result.output_terminals[output_index++] = fopen(next_token->token, mode);
         break;
-      case STDERR_REDIR:
-        result->error_redirect[stderr_redir_index++] = next_token->token;
-        break;
-      case STDOUT_REDIR_APPEND:
-        result->output_append_redirect[stdout_append_redir_index++] = next_token->token;
-        break;
-      case STDERR_REDIR_APPEND:
-        result->error_append_redirect[stderr_append_redir_index++] = next_token->token;
+      case STDERR_REDIR: case STDERR_REDIR_APPEND: 
+        strcpy(mode, next_token->token_type == STDERR_REDIR ? "w" : "a");
+        result.error_terminals[error_index++] = fopen(next_token->token, mode);
         break;
     }
   }
 
-  // TODO: hmm..... I want to make this cleaner? I don't want to use 4 arrays just to do this
-  // I thought about restructuring Argument to 
-  /*
-  struct Argument {
-    char** argument;
-    struct Token* output_redirectors;
-  };
-  But then there would be no element in output_redirectors that uses ARG so that would be a waste maybe? anyway I don't like it
-  Plus the name "Token" wouldn't communicate this intention very well. I could rename it to Redirect_Type but then now it 
-  wouldn't communicate its purpose as tokenizer either?
-  */
-  result->arguments[arg_index] = NULL;
-  result->output_terminals[stdout_redir_index] = NULL;
-  result->error_redirect[stderr_redir_index] = NULL;
-  result->output_append_redirect[stdout_append_redir_index] = NULL;
-  result->error_append_redirect[stderr_append_redir_index] = NULL;
+  result.arguments[arg_index] = NULL;
+  result.output_terminals[output_index > 1 ? output_index : 1] = NULL;
+  result.error_terminals[error_index > 1 ? error_index : 1] = NULL;
   return result;
 }
 
@@ -226,8 +191,6 @@ static bool is_delimeter(const char* cursor) {
 }
 
 static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {
-  char* debug = dest;
-  // int count = 0;
   while (**cursor_in_raw_args != '\0' && **cursor_in_raw_args != '\'') {
     *dest++ = *(*cursor_in_raw_args)++;
     (*dest_cursor)++;
@@ -236,7 +199,6 @@ static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_ar
 }
 
 static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {
-  char* debug = dest;
   while (**cursor_in_raw_args != '\0' && **cursor_in_raw_args != '\"') {
     if (**cursor_in_raw_args == '\\') {
       switch ((*cursor_in_raw_args)[1]) {
@@ -254,18 +216,18 @@ static bool literals_double_quote_open(char* dest, const char** cursor_in_raw_ar
   return *(*cursor_in_raw_args)++ == '\"';
 }
 
-static bool is_output_redir(const char* cursor) {
+static bool is_output_redir(const char* cursor) { // "1>" or ">>"
   return *cursor == '>' || (*cursor == '1' && cursor[1] == '>');
 }
 
-static bool is_err_redir(const char* cursor) {
+static bool is_err_redir(const char* cursor) { // "2>"
   return *cursor == '2' && cursor[1] == '>';
 };
 
-static bool is_output_appd_redir(const char* cursor) {
+static bool is_output_appd_redir(const char* cursor) { // ">>" or "1>>"
   return (*cursor == '>' && cursor[1] == '>') || (*cursor == '1' && cursor[1] == '>' && cursor[1] == '>');
 };
 
-static bool is_err_appd_redir(const char* cursor) {
+static bool is_err_appd_redir(const char* cursor) { // "2>>"
   return *cursor == '2' && cursor[1] == '>' && cursor[1] == '>';
 };
