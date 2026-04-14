@@ -4,6 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#if defined(__WIN32)
+  #include <Windows.h>
+#elif defined(__linux__) || defined(__unix__) || defined(TARGET_OS_MAC)
+  #include <termios.h>
+#endif
 
 #include "echo.h"
 #include "global_vars.h"
@@ -35,10 +40,7 @@ void executeCommand(char* input) {
     return;
   }
 
-  // extract command
-  char command[1024];
   struct Argument args = parse_args(input);
-  // char* output = NULL;
   struct Output output;
   if (!args.arguments[0]) { // signal for parsing failed
     printf("Failed to parse command: %s\n", input);
@@ -57,8 +59,6 @@ void executeCommand(char* input) {
     output = execute_bin(args);
   }
 
-  // TODO: This code is way too repetitive. Refactor it. One idea is in parse_args, return file_pointers to the redirectors instead of opening them here?
-  // outputting to stdout
   write_to_files(args.output_terminals, output.output);
   write_to_files(args.error_terminals, output.error);
   
@@ -71,13 +71,39 @@ void executeCommand(char* input) {
 int main(int argc, char *argv[]) {
   // Flush after every printf
   setbuf(stdout, NULL);
-
+  struct termios raw;
+  struct termios orig;
+  tcgetattr(STDIN_FILENO, &orig);
+  raw = orig;
+  raw.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+  
   char input[1024];
-
   while (true) {
     printf("$ ");
-    fgets(input, sizeof(input), stdin);
-    input[strcspn(input, "\n")] = '\0';
+
+    size_t cursor = 0;
+    while (read(STDIN_FILENO, input + cursor, 1) == 1 && (input[cursor] != '\n' && input[cursor] != '\r')) {
+      if (input[cursor] == 127 && cursor > 0) { // backspace
+        printf("\b \b");
+        cursor--;
+      } else if (input[cursor] == '\t') {
+        input[cursor] = '\0'; // temporarily place null terminating character for strcmp
+        if (strcmp(input, "ech") == 0) {
+          input[cursor++] = 'o';
+          input[cursor++] = ' ';
+          printf("%c ", 'o');
+        } else if (strcmp(input, "exi") == 0) {
+          input[cursor++] = 't';
+          input[cursor++] = ' ';
+          printf("%c ", 't');
+        }
+      } else if (input[cursor] != 127) {
+        printf("%c", input[cursor++]);
+      } 
+    }
+    input[cursor] = '\0';
+    printf("%c", '\n');
 
     if (strcmp(input, "exit") == 0) {
       break;
@@ -85,6 +111,7 @@ int main(int argc, char *argv[]) {
     
     executeCommand(input);
   }
-
+  
+  tcsetattr(STDIN_FILENO, TCSANOW, &orig);
   return 0;
 }
