@@ -97,6 +97,8 @@ int main(int argc, char *argv[]) {
           input[cursor++] = 't';
           input[cursor++] = ' ';
           printf("%c ", 't');
+        } else {
+          fputc('\x07', stdout);
         }
       } else if (input[cursor] != 127) {
         printf("%c", input[cursor++]);

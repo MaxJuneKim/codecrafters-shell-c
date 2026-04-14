@@ -79,11 +79,13 @@ struct Argument parse_args(const char* raw_args) {
 
   while (*cursor != '\0') {
     struct TOKEN* next_token = get_next_token(&cursor);
-    if (!next_token || *next_token->token == '\0') { // parsing has failed
+    if (!next_token) { // parsing has failed
       result.arguments[0] = NULL;
       result.output_terminals[0] = NULL;
       result.error_terminals[0] = NULL;
       return result;
+    } else if (*next_token->token == '\0') { // skipping empty token
+      continue;
     }
 
     char mode[2];
@@ -161,6 +163,7 @@ static struct TOKEN* get_next_token(const char** cursor) {
   } 
 
   result->token[index] = '\0';
+  if (result->token_type != ARG && index == 0) return NULL;
   return result;
 }
 
