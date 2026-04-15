@@ -4,3 +4,4 @@
 
 extern const char* const commands[total_commands];
 extern const char special_characters[2];
+extern char** all_executables;

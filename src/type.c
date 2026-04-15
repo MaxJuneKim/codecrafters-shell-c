@@ -28,7 +28,7 @@ struct Output executeType(const char* argCommand) {
   char* exec_loc = locate_bin(argCommand);
   if (exec_loc) {
     // TODO: add safety measure to cover the case where there might not be enough room in output string 
-    output.output = (char*)malloc(sizeof(char) * strlen(argCommand) + 6);
+    output.output = (char*)malloc(sizeof(char) * (strlen(argCommand) + strlen(exec_loc) + 6));
     snprintf(output.output, strlen(argCommand) + strlen(exec_loc) + 6, "%s is %s\n", argCommand, exec_loc);
     free(exec_loc);
   } else { // if not, send "not found" error

@@ -18,6 +18,7 @@
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
 #include "types.h"
+#include "locate_bin.h"
 
 // TODO: 
 // I'm facing plenty of cases where output of my local run and codecrafter testing are different.
@@ -68,7 +69,40 @@ void executeCommand(char* input) {
   free_arg(args);
 }
 
+void tab(char* input, size_t* cursor) {
+  input[*cursor] = '\0'; // temporarily place null terminating character for strcmp
+  if (strcmp(input, "ech") == 0) {
+    input[(*cursor)++] = 'o';
+    input[(*cursor)++] = ' ';
+    printf("%c ", 'o');
+  } else if (strcmp(input, "exi") == 0) {
+    input[(*cursor)++] = 't';
+    input[(*cursor)++] = ' ';
+    printf("%c ", 't');
+  } else { 
+    // TODO: This is a bit of challenge but, let's try using Trie for performance in the future for performance improvement
+    // TODO: Currnetly, this logic returns first match. Let's try to implement the behavior of actual shell, which is,
+    // autocomplete only when there's one possible path. When there are multiple paths, show possible options
+    char** executable = all_executables;
+    while (*executable) { // for each binary in all_executables
+      if (strncmp(*executable, input, *cursor) == 0) { // first_match found
+        printf("%s ", *executable + *cursor); // printing the rest of the name for the binary
+        char* cpy_cursor = *executable + *cursor;
+        while (*cpy_cursor != '\0') { // copying to the input also
+          *(input + (*cursor)++) = *cpy_cursor++;
+        }
+        *(input + (*cursor)++) = ' ';
+        return;
+      }
+      executable++;
+    }
+    fputc('\x07', stdout);
+  }
+}
+
 int main(int argc, char *argv[]) {
+  load_all_executables();
+
   // Flush after every printf
   setbuf(stdout, NULL);
   struct termios raw;
@@ -88,18 +122,7 @@ int main(int argc, char *argv[]) {
         printf("\b \b");
         cursor--;
       } else if (input[cursor] == '\t') {
-        input[cursor] = '\0'; // temporarily place null terminating character for strcmp
-        if (strcmp(input, "ech") == 0) {
-          input[cursor++] = 'o';
-          input[cursor++] = ' ';
-          printf("%c ", 'o');
-        } else if (strcmp(input, "exi") == 0) {
-          input[cursor++] = 't';
-          input[cursor++] = ' ';
-          printf("%c ", 't');
-        } else {
-          fputc('\x07', stdout);
-        }
+        tab(input, &cursor);
       } else if (input[cursor] != 127) {
         printf("%c", input[cursor++]);
       } 
@@ -115,5 +138,6 @@ int main(int argc, char *argv[]) {
   }
   
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
+  free(all_executables);
   return 0;
 }
