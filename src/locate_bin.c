@@ -10,6 +10,7 @@
 
 #include "locate_bin.h"
 #include "global_vars.h"
+#include "sort_command.h"
 
 // REVISIT NOTE: The way I remember is, processors on different operating systems have different set of defined variables
 // Windows preprocessor would have __WIN32 and __WIN64 defined but not MAC_OS or Linux preprocessor for example.
@@ -36,7 +37,7 @@ void load_all_executables() { // pre-load all binaries when this program loads?
   #endif
   
   // TODO: This is a bit of challenge but, let's try using Trie for performance in the future.
-  size_t count = 0;
+  PATH_EXECUTABLES_COUNT = 0;
   char* all_paths = strdup(path_env);
   char* cur_path = strtok(all_paths, delimeter);
   while (cur_path) {
@@ -48,12 +49,12 @@ void load_all_executables() { // pre-load all binaries when this program loads?
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
         snprintf(full_path, sizeof(full_path), "%s/%s", cur_path, entry->d_name);
         if (is_executable(full_path)) {
-          binaries[count++] = strdup(entry->d_name);
-          if (count >= capacity) { // resizing the array
+          binaries[PATH_EXECUTABLES_COUNT++] = strdup(entry->d_name);
+          if (PATH_EXECUTABLES_COUNT >= capacity) { // resizing the array
             capacity *= 2;
             char** temp = binaries;
             binaries = (char**)malloc(sizeof(char*) * capacity);
-            for (size_t i = 0; i < count; i++) binaries[i] = temp[i];
+            for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) binaries[i] = temp[i];
           }
         }
       }
@@ -62,10 +63,11 @@ void load_all_executables() { // pre-load all binaries when this program loads?
     cur_path = strtok(NULL, delimeter);
   }
 
-  all_executables = (char**)malloc(sizeof(char*) * (count + 1));
-  for (size_t i = 0; i < count; i++) // copying to the global variables
-    all_executables[i] = binaries[i];
-  all_executables[count] = NULL;
+  ALL_EXECUTABLES = (char**)malloc(sizeof(char*) * (PATH_EXECUTABLES_COUNT + 1));
+  for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) // copying to the global variables
+    ALL_EXECUTABLES[i] = binaries[i];
+  sort_commands(ALL_EXECUTABLES, 0, PATH_EXECUTABLES_COUNT);
+  ALL_EXECUTABLES[PATH_EXECUTABLES_COUNT] = NULL;
 
   // cleanup
   free(binaries);
