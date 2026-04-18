@@ -7,6 +7,26 @@
 #include "global_vars.h"
 #include "sort_command.h"
 
+// When user presses tab and there are multiple matches, auto-complete to longest common prefixes of those matching executables
+static void auto_complete_to_longest_common_prefix(char** matching_executables, char *input, size_t* cursor) {
+  // matching_executables should not be modified here
+  if (*matching_executables == NULL) return; // empty strings
+
+  while (true) { // For each index
+    size_t j = 0;
+    for (; matching_executables[j + 1]; j++) { // for each string
+      if (matching_executables[j][*cursor] == '\0' || 
+          matching_executables[j + 1][*cursor] == '\0' || 
+          matching_executables[j][*cursor] != matching_executables[j + 1][*cursor]) {
+        return;
+      }
+    }
+    fputc(matching_executables[j][*cursor], stdout);
+    input[*cursor] = matching_executables[j][*cursor];
+    (*cursor)++;
+  }
+}
+
 void tab(char* input, char** matching_executables, size_t* cursor, bool* second_tab) {
   input[*cursor] = '\0'; // temporarily place null terminating character for strcmp
   if (strcmp(input, "ech") == 0) { // 
@@ -31,15 +51,13 @@ void tab(char* input, char** matching_executables, size_t* cursor, bool* second_
       printf("\n$ %s", input);
     } else {
       fputc('\x07', stdout);
-      // printf("%c\n$ %s", '\x07', input);
     }
-    // *matching_executables = NULL;
   } else { // first tab
     char** executable = ALL_EXECUTABLES; // cursor for ALL_EXECUTABLES global variable
     size_t matching_count = 0;
     while (*executable) { // for each binary in ALL_EXECUTABLES
       if (strncmp(*executable, input, *cursor) == 0) { // Match found
-        matching_executables[matching_count++] = *executable; // *Shallow copy. 
+        matching_executables[matching_count++] = *executable; // *Shallow copy*. 
       }
       executable++;
     }
@@ -47,7 +65,8 @@ void tab(char* input, char** matching_executables, size_t* cursor, bool* second_
     if (matching_count > 1) { // multiple matches, prepare for second tab
       fputc('\x07', stdout); // Does not move the cursor of stdout
       *second_tab = true;
-    } else if (matching_count == 1) {
+      auto_complete_to_longest_common_prefix(matching_executables, input, cursor);
+    } else if (matching_count == 1) { // Single match, autocomplete to the match
       printf("%s ", *matching_executables + *cursor); // printing the rest of the name for the binary
       char* cpy_cursor = *matching_executables + *cursor;
       while (*cpy_cursor != '\0') { // copying to the input also
