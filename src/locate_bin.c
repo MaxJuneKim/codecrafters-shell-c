@@ -82,8 +82,10 @@ char* locate_bin(const char* argCommand) {
     char* path_value = getenv("PATH");
   #endif
 
-  char all_paths[strlen(path_value) + 1];
-  strcpy(all_paths, path_value);
+  size_t paths_len = strlen(path_value);
+  char all_paths[paths_len + 1];
+  memcpy(all_paths, path_value, paths_len);
+  all_paths[paths_len] ='\0';
 
   // testing each path
   #if defined(__WIN32)

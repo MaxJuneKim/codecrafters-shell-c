@@ -5,12 +5,15 @@
 
 #include "parse_arg.h"
 
+// TODO: debug this parsing case: 1> file1 cat 2>'a''d'"os" "foo"'_'file
+
 enum TOKEN_TYPE {
   ARG,
   STDOUT_REDIR,
   STDERR_REDIR,
   STDOUT_REDIR_APPEND,
-  STDERR_REDIR_APPEND
+  STDERR_REDIR_APPEND,
+  PIPELINE_REDIR
 };
 
 struct TOKEN {
@@ -19,6 +22,15 @@ struct TOKEN {
 };
 
 // helper functions
+
+// this helper function is called when parsing has failed, and thus memories should be freed and NULL should be returned
+static struct Argument* signal_parsing_failure(size_t size, struct Argument* result) {
+  for (size_t i = 0; i < size; i++) {
+    free_arg(result[i]);
+    free(result + i);
+  }
+  return NULL;
+}
 
 // treat every character in single quotes literally, including delimiters.
 // If it successfully finished reading characters in the enclosing double quotes, it will return true. otherwise, false
@@ -43,6 +55,7 @@ static int consume_next_character(char* dest, const char** cursor);
 // ' ': empty space
 // > or 1>: stdout redirect operator
 // 2> : stderr redirect operator
+// | : pipeline operator
 static bool is_delimeter(const char* cursor);
 
 static bool is_output_redir(const char* cursor);
@@ -53,26 +66,48 @@ static bool is_output_appd_redir(const char* cursor);
 
 static bool is_err_appd_redir(const char* cursor);
 
+struct Argument init_argument(char** arguments, FILE** output_terminals, FILE** error_terminals) {
+  struct Argument argument;
+  argument.arguments = arguments;
+  argument.output_terminals = output_terminals;
+  argument.error_terminals = error_terminals;
+  return argument;
+}
+
+struct Argument* malloc_argument(char** arguments, FILE** output_terminals, FILE** error_terminals, size_t size) {
+  struct Argument* argument = (struct Argument*)malloc(sizeof(struct Argument) * size);
+  argument->arguments = arguments;
+  argument->output_terminals = output_terminals;
+  argument->error_terminals = error_terminals;
+  return argument;
+}
+
 // header defined functions
 void free_arg(struct Argument args) {
   char** cursor = args.arguments;
-  while (*cursor) free(*cursor++);
+  while (*cursor) {
+    free(*cursor++);
+  }
   free(args.arguments);
+  free(args.output_terminals);
+  free(args.error_terminals);
 }
 
 // Returns newly malloc'd array of strings. Each string in the array contains each argument of the entire command
 // It will treat every character within enclosing single quotes literally. within enclosing double quotes, some special characters will be interpreted
 // A string after > will be treated as name of the file that output of this program should be redirected to
-struct Argument parse_args(const char* raw_args) {
+struct Argument* parse_args(const char* raw_args) {
   const char* cursor = raw_args;
-  struct Argument result; // = (struct Argument*)malloc(sizeof(struct Argument));
+  // Hmm... How should I signal end to this array?
+  struct Argument* result = malloc_argument(
+      (char**)malloc(sizeof(char*) * 256), 
+      (FILE**)malloc(sizeof(FILE*) * 64), 
+      (FILE**)malloc(sizeof(FILE*) * 64),
+      32
+    );
+  size_t result_cursor = 0;
   // TODO: Decide default value for leftover room for sources and implement auto resizing for safety measure
-  result.arguments = (char**)malloc(sizeof(char*) * 256);
-  result.output_terminals = (FILE**)malloc(sizeof(FILE*) * 64);
-  result.error_terminals = (FILE**)malloc(sizeof(FILE*) * 64);
-  result.output_terminals[0] = stdout;
-  result.error_terminals[0] = stderr;
-
+  
   int arg_index = 0;
   int output_index = 0;
   int error_index = 0;
@@ -80,10 +115,7 @@ struct Argument parse_args(const char* raw_args) {
   while (*cursor != '\0') {
     struct TOKEN* next_token = get_next_token(&cursor);
     if (!next_token) { // parsing has failed
-      result.arguments[0] = NULL;
-      result.output_terminals[0] = NULL;
-      result.error_terminals[0] = NULL;
-      return result;
+      return signal_parsing_failure(result_cursor + 1, result);
     } else if (*next_token->token == '\0') { // skipping empty token
       continue;
     }
@@ -91,22 +123,46 @@ struct Argument parse_args(const char* raw_args) {
     char mode[2];
     switch (next_token->token_type) {
       case ARG:
-        result.arguments[arg_index++] = next_token->token;
+        result[result_cursor].arguments[arg_index++] = next_token->token;
         break;
       case STDOUT_REDIR: case STDOUT_REDIR_APPEND: 
         strcpy(mode, next_token->token_type == STDOUT_REDIR ? "w" : "a");
-        result.output_terminals[output_index++] = fopen(next_token->token, mode);
+        result[result_cursor].output_terminals[output_index++] = fopen(next_token->token, mode);
         break;
       case STDERR_REDIR: case STDERR_REDIR_APPEND: 
         strcpy(mode, next_token->token_type == STDERR_REDIR ? "w" : "a");
-        result.error_terminals[error_index++] = fopen(next_token->token, mode);
+        result[result_cursor].error_terminals[error_index++] = fopen(next_token->token, mode);
+        break;
+      case PIPELINE_REDIR:
+        result[result_cursor].arguments[arg_index] = NULL;
+        result[result_cursor].output_terminals[output_index] = NULL;
+        result[result_cursor].error_terminals[error_index] = NULL;
+
+        // Prepping for next command
+        result_cursor++;
+        result[result_cursor] = init_argument(
+          (char**)malloc(sizeof(char*) * 256), // argument
+          (FILE**)malloc(sizeof(FILE*) * 64), // output_terminals
+          (FILE**)malloc(sizeof(FILE*) * 64) // error_terminals
+        );
+        arg_index = 0;
+        output_index = 0;
+        error_index = 0;
         break;
     }
   }
 
-  result.arguments[arg_index] = NULL;
-  result.output_terminals[output_index > 1 ? output_index : 1] = NULL;
-  result.error_terminals[error_index > 1 ? error_index : 1] = NULL;
+  // if no redirect is defined for output and error, use stdout and stderr
+  if (output_index == 0) result[result_cursor].output_terminals[output_index++] = stdout;
+  if (error_index == 0) result[result_cursor].error_terminals[error_index++] = stderr;
+
+  if (arg_index == 0) signal_parsing_failure(result_cursor + 1, result); // At least one arg should be present in each cmd
+  result[result_cursor].output_terminals[output_index] = NULL;
+  result[result_cursor].error_terminals[error_index] = NULL;
+  result[result_cursor].arguments[arg_index] = NULL; 
+
+  // Defining the end of struct Argument* result array. Potential Danger: what if there is more than 64 piped commands?
+  result[result_cursor + 1] = init_argument(NULL, NULL, NULL);  
   return result;
 }
 
@@ -135,7 +191,13 @@ static struct TOKEN* get_next_token(const char** cursor) {
     result->token_type = STDERR_REDIR;
     (*cursor) += 2;
     while (**cursor == ' ') (*cursor)++;
-  }  else {
+  } else if (**cursor == '|') {
+    result->token[0] = '|';
+    result->token[1] = '\0';
+    result->token_type = PIPELINE_REDIR;
+    (*cursor)++;
+    return result;
+  } else {
     result->token_type = ARG;
   }
 
@@ -163,7 +225,8 @@ static struct TOKEN* get_next_token(const char** cursor) {
   } 
 
   result->token[index] = '\0';
-  if (result->token_type != ARG && index == 0) return NULL;
+  // Check for unfinished output and error redirect argument. EX: "echo 2>"
+  if (result->token_type != ARG && index == 0) return NULL; 
   return result;
 }
 
@@ -190,7 +253,7 @@ static int consume_next_character(char* dest, const char** cursor) {
 }
 
 static bool is_delimeter(const char* cursor) {
-  return *cursor == '\0' ||  *cursor == ' ' || *cursor == '>' || (*cursor == '1' && cursor[1] == '>') || (*cursor == '2' && cursor[1] == '>');
+  return *cursor == '|' || *cursor == '\0' ||  *cursor == ' ' || *cursor == '>' || (*cursor == '1' && cursor[1] == '>') || (*cursor == '2' && cursor[1] == '>');
 }
 
 static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_args, int* dest_cursor) {

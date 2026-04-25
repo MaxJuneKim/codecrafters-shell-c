@@ -42,32 +42,44 @@ void executeCommand(char* input) {
     return;
   }
 
-  struct Argument args = parse_args(input);
-  struct Output output;
-  if (!args.arguments[0]) { // signal for parsing failed
+  struct Argument* args = parse_args(input);
+  if (!args) { // signal for parsing failed
     printf("Failed to parse command: %s\n", input);
     return;
   }
 
-  if (strcmp(args.arguments[0], "echo") == 0) {
-    output = echo((const char**)args.arguments);
-  } else if (strcmp(args.arguments[0], "type") == 0) {
-    output = executeType(args.arguments[1]);
-  } else if (strcmp(args.arguments[0], "pwd") == 0) {
+  // struct Output previous_output = init_output();
+  struct Output output = init_output();
+  struct Argument* args_cursor = args;
+
+  bool need_to_redir = true;
+  if (strcmp(args_cursor->arguments[0], "echo") == 0) {
+    output = echo((const char**)args_cursor->arguments);
+  } else if (strcmp(args_cursor->arguments[0], "type") == 0) {
+    output = executeType(args_cursor->arguments[1]);
+  } else if (strcmp(args_cursor->arguments[0], "pwd") == 0) {
     output = pwd();
-  } else if (strcmp(args.arguments[0], "cd") == 0) {
-    output = cd(args.arguments[1]);
+  } else if (strcmp(args_cursor->arguments[0], "cd") == 0) {
+    output = cd(args_cursor->arguments[1]);
   } else {
-    output = execute_bin(args);
+    execute_bin(args_cursor);
+    need_to_redir = false;
   }
 
-  write_to_files(args.output_terminals, output.output);
-  write_to_files(args.error_terminals, output.error);
+  write_to_files(args_cursor->output_terminals, need_to_redir ? output.output : NULL);
+  write_to_files(args_cursor->error_terminals, need_to_redir ? output.error : NULL);
   
-  // deallocating
+  // Deallocating previous output
+  // if (previous_output.output) free(previous_output.output);
+  // if (previous_output.error) free(previous_output.error);
+  // previous_output = output;
+  // args_cursor++;
+  
+  // deallocating/freeing memory
   if (output.output) free(output.output);
   if (output.error) free(output.error);
-  free_arg(args);
+  for (size_t i = 0; args[i].arguments; i++) free_arg(args[i]);
+  free(args);
 }
 
 int main(int argc, char *argv[]) {
