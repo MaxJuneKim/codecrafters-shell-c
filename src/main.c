@@ -13,7 +13,7 @@
 #include "echo.h"
 #include "global_vars.h"
 #include "type.h"
-#include "execute_bin.h"
+#include "execute_cmd.h"
 #include "parse_arg.h"
 #include "Navigation/pwd.h"
 #include "Navigation/cd.h"
@@ -26,18 +26,7 @@
 // I wonder if this is an OS issue because I am using Mac OS. Build this project in WSL as well and Windows if possible
 // and see if I can similar results 
 
-void write_to_files(FILE** file_ptrs, const char* output) {
-  while (*file_ptrs) {
-    if (output) fputs(output, *file_ptrs);
-    if (*file_ptrs == stdout || *file_ptrs == stderr) {
-      file_ptrs++;
-      continue;
-    }
-    fclose(*file_ptrs++);
-  }
-}
-
-void executeCommand(char* input) {
+void executeCommand(char* input) { 
   if (*input == '\0') { // empty command
     return;
   }
@@ -47,37 +36,8 @@ void executeCommand(char* input) {
     printf("Failed to parse command: %s\n", input);
     return;
   }
+  execute_cmd(args);
 
-  // struct Output previous_output = init_output();
-  struct Output output = init_output();
-  struct Argument* args_cursor = args;
-
-  bool need_to_redir = true;
-  if (strcmp(args_cursor->arguments[0], "echo") == 0) {
-    output = echo((const char**)args_cursor->arguments);
-  } else if (strcmp(args_cursor->arguments[0], "type") == 0) {
-    output = executeType(args_cursor->arguments[1]);
-  } else if (strcmp(args_cursor->arguments[0], "pwd") == 0) {
-    output = pwd();
-  } else if (strcmp(args_cursor->arguments[0], "cd") == 0) {
-    output = cd(args_cursor->arguments[1]);
-  } else {
-    execute_bin(args_cursor);
-    need_to_redir = false;
-  }
-
-  write_to_files(args_cursor->output_terminals, need_to_redir ? output.output : NULL);
-  write_to_files(args_cursor->error_terminals, need_to_redir ? output.error : NULL);
-  
-  // Deallocating previous output
-  // if (previous_output.output) free(previous_output.output);
-  // if (previous_output.error) free(previous_output.error);
-  // previous_output = output;
-  // args_cursor++;
-  
-  // deallocating/freeing memory
-  if (output.output) free(output.output);
-  if (output.error) free(output.error);
   for (size_t i = 0; args[i].arguments; i++) free_arg(args[i]);
   free(args);
 }
@@ -127,6 +87,8 @@ int main(int argc, char *argv[]) {
   }
   
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
+  for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) free(ALL_EXECUTABLES[i]);
   free(ALL_EXECUTABLES);
+  free(matching_executables);
   return 0;
 }

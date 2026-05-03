@@ -55,6 +55,7 @@ void load_all_executables() { // pre-load all binaries when this program loads?
             char** temp = binaries;
             binaries = (char**)malloc(sizeof(char*) * capacity);
             for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) binaries[i] = temp[i];
+            free(temp);
           }
         }
       }

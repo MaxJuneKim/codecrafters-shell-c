@@ -11,6 +11,7 @@
   #include <windows.h>
 #endif
 
+// TODO: Duplicate behavior of zsh, treating every argument to type command as either builtin or executable binary that can be located in PATH variable
 struct Output executeType(const char* argCommand) {
   struct Output output;
   output.output = NULL;

@@ -27,6 +27,7 @@ static void auto_complete_to_longest_common_prefix(char** matching_executables, 
   }
 }
 
+// tab function does not have ownership of any of the passed instance of these arguments, thus, should not free any of them
 void tab(char* input, char** matching_executables, size_t* cursor, bool* second_tab) {
   input[*cursor] = '\0'; // temporarily place null terminating character for strcmp
   if (strcmp(input, "ech") == 0) { // 

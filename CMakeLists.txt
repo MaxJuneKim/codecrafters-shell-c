@@ -10,6 +10,9 @@ find_package(Threads)
 add_executable(shell ${SOURCE_FILES})
 # target_sources(shell PRIVATE ${SOURCE_FILES} PUBLIC headers)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+
 target_include_directories(shell PRIVATE headers)
 target_include_directories(shell PRIVATE headers/Navigation)
 target_link_libraries(shell PRIVATE readline Threads::Threads)

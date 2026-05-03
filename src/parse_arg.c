@@ -85,11 +85,21 @@ struct Argument* malloc_argument(char** arguments, FILE** output_terminals, FILE
 // header defined functions
 void free_arg(struct Argument args) {
   char** cursor = args.arguments;
-  while (*cursor) {
-    free(*cursor++);
-  }
+  while (*cursor) free(*cursor++);
   free(args.arguments);
+
+  FILE** file_cursor = args.output_terminals;
+  while (*file_cursor) {
+    if (*file_cursor != stdout) fclose(*file_cursor);
+    file_cursor++;
+  }
   free(args.output_terminals);
+
+  file_cursor = args.error_terminals;
+  while (*file_cursor) {
+    if (*file_cursor != stderr) fclose(*file_cursor);
+    file_cursor++;
+  }
   free(args.error_terminals);
 }
 
@@ -128,10 +138,12 @@ struct Argument* parse_args(const char* raw_args) {
       case STDOUT_REDIR: case STDOUT_REDIR_APPEND: 
         strcpy(mode, next_token->token_type == STDOUT_REDIR ? "w" : "a");
         result[result_cursor].output_terminals[output_index++] = fopen(next_token->token, mode);
+        free(next_token->token);
         break;
       case STDERR_REDIR: case STDERR_REDIR_APPEND: 
         strcpy(mode, next_token->token_type == STDERR_REDIR ? "w" : "a");
         result[result_cursor].error_terminals[error_index++] = fopen(next_token->token, mode);
+        free(next_token->token);
         break;
       case PIPELINE_REDIR:
         result[result_cursor].arguments[arg_index] = NULL;
@@ -150,6 +162,7 @@ struct Argument* parse_args(const char* raw_args) {
         error_index = 0;
         break;
     }
+    free(next_token);
   }
 
   // if no redirect is defined for output and error, use stdout and stderr
@@ -232,11 +245,6 @@ static struct TOKEN* get_next_token(const char** cursor) {
 
 static int consume_next_character(char* dest, const char** cursor) {
   switch (**cursor) { // If we need to append special characters that can be expanded, add here
-  // These cases are dismissed for now as we assume quote should not be open. Should we decide otherwise, we would open this later.
-  // case '\'': 
-  //   break;
-  // case '\"':
-  //   break;
   case '\\': // if encounter \ character, treat next character literally
     *dest = *++(*cursor);
     (*cursor)++;
