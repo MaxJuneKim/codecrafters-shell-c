@@ -1,0 +1,87 @@
+Section 1: Introduction 
+Section 2: Navigation
+Section 3: Quoting
+Secrion 4: Redirection
+Section 5: Command Completion
+Section 6: Pipeline
+Section 7: History
+  1: Set the prev_commands_size to arbitrary value 20:
+    type echo
+    type pwd
+    type cd
+    type type
+    type exit
+    type history
+    my_comm
+    my_command hello world is a scam
+    type which
+    echo command10
+    echo command11
+    my_commando_2
+    my_commando
+    which gcc
+    pwd
+    echo echo
+    cat ./custom_exe.c | grep "int"
+    cat ./temp_bins/custom_exe.c
+    cat ./temp_bins/custom_exe.c | grep int
+    exit
+  then check .my_shell_history
+  
+  2: Basic usage
+    type pwd
+    type cd
+    type ls 
+    which gcc
+    history
+  3: Set prev_commands_size to arbitrary value 10. Confirm if ring buffer is working correctly
+    echo hello world
+    dampener
+    echo command not found
+    which gcc
+    type pwd
+    pwd
+    history
+    history
+    echo chinese restaurant
+    command 4
+    history
+  4: empty command between commands can be ignored
+    echo hello world
+    pwd
+    ls ~/Downloads
+
+    cat ~/foo_file | grep glory
+
+
+    echo command not found
+    which clang
+
+
+    type pwd
+  5: Set prev_commands_size to arbitrary value 10
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+    21
+    22
+  6: Before typing any command,
+      history
+    It should load previous commands from previous session

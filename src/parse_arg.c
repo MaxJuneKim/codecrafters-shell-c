@@ -269,6 +269,7 @@ static bool literals_single_quote_open(char* dest, const char** cursor_in_raw_ar
     *dest++ = *(*cursor_in_raw_args)++;
     (*dest_cursor)++;
   }
+  // TODO: How should we handle unclosed quote? like this: echo please don't do this
   return *(*cursor_in_raw_args)++ == '\'';
 }
 

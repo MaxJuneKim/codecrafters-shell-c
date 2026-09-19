@@ -1,8 +1,8 @@
 #pragma once
 
-#define total_commands 5
+#define total_commands 6
 
-extern const char* const commands[total_commands];
+extern const char* const built_in_commands[total_commands];
 extern const char special_characters[2];
 
 // Sorted, array of all possible executable files in PATH directories

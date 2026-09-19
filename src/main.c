@@ -20,13 +20,14 @@
 #include "types.h"
 #include "locate_bin.h"
 #include "tab.h"
+#include "history.h"
 
 // TODO: 
 // I'm facing plenty of cases where output of my local run and codecrafter testing are different.
 // I wonder if this is an OS issue because I am using Mac OS. Build this project in WSL as well and Windows if possible
-// and see if I can similar results 
+// and see if I can get similar results 
 
-void executeCommand(char* input) { 
+void executeCommand(const char* input) {
   if (*input == '\0') { // empty command
     return;
   }
@@ -44,6 +45,7 @@ void executeCommand(char* input) {
 
 int main(int argc, char *argv[]) {
   load_all_executables();
+  // load_history_from_file();
 
   // Flush after every printf
   setbuf(stdout, NULL);
@@ -79,6 +81,8 @@ int main(int argc, char *argv[]) {
     printf("%c", '\n');
     second_tab = false;
 
+    add_to_history(input);
+
     if (strcmp(input, "exit") == 0) {
       break;
     }
@@ -86,6 +90,7 @@ int main(int argc, char *argv[]) {
     executeCommand(input);
   }
   
+  store_history();
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
   for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) free(ALL_EXECUTABLES[i]);
   free(ALL_EXECUTABLES);

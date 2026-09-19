@@ -17,12 +17,13 @@
 #include "pwd.h"
 #include "cd.h"
 #include "type.h"
+#include "history.h"
 
 struct Pipeline {
   pid_t child_process_id;
   int output_to_next_cmd_fild_w; // write pipe where input into a child process, from previous command should be written to. 
-  int input_from_cur_cmd_fild_r; // read pipe where output that a child process produces are written. If current command is a builtin, this will be ignored.
-  int err_from_cur_cmd_fild_r;  // read pipe where error that a child process produces are written. If current command is a builtin, this will be ignored.
+  int input_from_cur_cmd_fild_r; // read pipe where output that a child process produces is written. If current command is a builtin, this will be ignored.
+  int err_from_cur_cmd_fild_r;  // read pipe where error that a child process produces is written. If current command is a builtin, this will be ignored.
   const struct Argument* argument;
 };
 
@@ -53,7 +54,7 @@ static void* execute_bin(void* arg);
 
 // Helper function. Return true if passed command is a builtin, false otherwise
 static bool is_built_in(const char* cmd) {
-  return strcmp(cmd, "echo") == 0 || strcmp(cmd, "type") == 0 || strcmp(cmd, "pwd") == 0 || strcmp(cmd, "cd") == 0;
+  return strcmp(cmd, "echo") == 0 || strcmp(cmd, "type") == 0 || strcmp(cmd, "pwd") == 0 || strcmp(cmd, "cd") == 0 || strcmp(cmd, "history") == 0;
 }
 
 void execute_cmd(const struct Argument* commands) {
@@ -155,7 +156,9 @@ void* execute_built_in(void* arg) {
     output = pwd();
   } else if (strcmp(pipeline->argument->arguments[0], "cd") == 0) {
     output = cd(pipeline->argument->arguments[1]);
-  } 
+  } else if (strcmp(pipeline->argument->arguments[0], "history") == 0) {
+    output = history(10);
+  }
 
   // Write to next cmd. Check if output to next command fd is -1, signaling another builtin
   if (pipeline->output_to_next_cmd_fild_w != -1) {

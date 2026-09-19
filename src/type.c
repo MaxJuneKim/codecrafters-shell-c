@@ -18,7 +18,7 @@ struct Output executeType(const char* argCommand) {
   output.error = NULL;
   for (int i = 0; i < total_commands; i++) { // For each builtin shell,
     // compare argument command to the current builtin shell. If match, print "shell builtin" and return
-    if (strcmp(argCommand, commands[i]) == 0) {
+    if (strcmp(argCommand, built_in_commands[i]) == 0) {
       output.output = (char*)malloc(sizeof(char) * strlen(argCommand) + 21);
       snprintf(output.output, strlen(argCommand) + 21, "%s is a shell builtin\n", argCommand);
       return output;
