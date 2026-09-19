@@ -22,7 +22,7 @@ void load_history_from_file() {
   size_t tmp_sz = 0;
   size_t i = 0;
 
-  if (history == NULL) return;
+  if (read == NULL) return;
 
   // while ((fgets(buffer, size, read))) != NULL) {
   while (i++ < prev_commands_size && getline(historic_commands + add_cursor, &tmp_sz, read) != -1) {
@@ -67,13 +67,13 @@ void add_to_history(const char* command) {
   }
 }
 
-struct Output history(size_t size) {
+struct Output write_history(size_t size) {
   size_t read_cursor = add_cursor == 0 ? prev_commands_size : add_cursor - 1;
   size_t i = 0;
   size_t output_size = 0;
 
   while (i < size && historic_commands[read_cursor] != NULL) { // calculating size of the output
-    output_size += strlen(historic_commands[read_cursor]) + 1;
+    output_size += strlen(historic_commands[read_cursor]) + 11;
     i++;
     if (read_cursor == 0) {
       read_cursor = prev_commands_size;
@@ -83,7 +83,7 @@ struct Output history(size_t size) {
   }
 
   struct Output result = init_output();
-  result.output = (char*)malloc(sizeof(char) * output_size + 1);
+  result.output = (char*)malloc(sizeof(char) * (output_size + 1));
   char* result_cursor = result.output;
 
   i = 0; // resetting cursors
@@ -91,7 +91,7 @@ struct Output history(size_t size) {
 
   // Actually writing to the result
   while (i < size && historic_commands[read_cursor] != NULL) {
-    size_t sz = sprintf(result_cursor, "%s\n", historic_commands[read_cursor]);
+    size_t sz = sprintf(result_cursor, "    %zu  %s\n", i, historic_commands[read_cursor]);
     result_cursor += sz;
     i++;
     if (read_cursor == prev_commands_size) {

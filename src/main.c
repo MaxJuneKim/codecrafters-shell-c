@@ -63,14 +63,19 @@ int main(int argc, char *argv[]) {
     printf("$ ");
 
     size_t cursor = 0;
+    // getchar better?
     while (read(STDIN_FILENO, input + cursor, 1) == 1 && (input[cursor] != '\n' && input[cursor] != '\r')) {
-      if (input[cursor] == 127 && cursor > 0) { // backspace
+      if ((input[cursor] == 127 || input[cursor] == '\b') && cursor > 0) { // backspace
         printf("\b \b");
         cursor--;
         second_tab = false;
-      } else if (input[cursor] == '\t') {
+      } else if (input[cursor] == '\t') { // auto-completion
         tab(input, matching_executables, &cursor, &second_tab);
+      } else if (cursor >= 2 && input[cursor] == 'A' && input[cursor - 1] == 91 && input[cursor - 2] == '\033') { // up arrow key
+        // strcpy(input, historic_commands[]); TODO: When user hits up or down arrow key, search through previous commands
+        second_tab = false;
       } else if (input[cursor] != 127) {
+        // TODO: handle special characters_function
         printf("%c", input[cursor++]);
         second_tab = false;
       } else {

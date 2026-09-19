@@ -157,7 +157,7 @@ void* execute_built_in(void* arg) {
   } else if (strcmp(pipeline->argument->arguments[0], "cd") == 0) {
     output = cd(pipeline->argument->arguments[1]);
   } else if (strcmp(pipeline->argument->arguments[0], "history") == 0) {
-    output = history(10);
+    output = write_history(prev_commands_size); // TODO: allow passing parameter to history cmd to control how many previous commands are printed
   }
 
   // Write to next cmd. Check if output to next command fd is -1, signaling another builtin
