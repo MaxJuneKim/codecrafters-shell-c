@@ -6,8 +6,8 @@
 #include "Navigation/cd.h"
 
 struct Output cd(const char* directory) {
-  struct Output output;
-  output.output = NULL;
+  struct Output output = init_output();
+  if (directory == NULL) return output; // no parameter
 
   int result = chdir(directory);
   int len = strlen(directory);

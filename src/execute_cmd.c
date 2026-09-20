@@ -157,12 +157,13 @@ void* execute_built_in(void* arg) {
   } else if (strcmp(pipeline->argument->arguments[0], "cd") == 0) {
     output = cd(pipeline->argument->arguments[1]);
   } else if (strcmp(pipeline->argument->arguments[0], "history") == 0) {
-    output = write_history(prev_commands_size); // TODO: allow passing parameter to history cmd to control how many previous commands are printed
+    output = write_history(pipeline->argument->arguments[1]); 
   }
 
   // Write to next cmd. Check if output to next command fd is -1, signaling another builtin
   if (pipeline->output_to_next_cmd_fild_w != -1) {
-    write(pipeline->output_to_next_cmd_fild_w, output.output, strlen(output.output));
+    if (output.output) // output is not NULL
+      write(pipeline->output_to_next_cmd_fild_w, output.output, strlen(output.output));
     close(pipeline->output_to_next_cmd_fild_w);
   }
 

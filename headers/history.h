@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-#define prev_commands_size 40
+#define prev_commands_size 800
 
 // Before the current session starts, retrieve previous commands from .my_shell_history file
 extern void load_history_from_file();
@@ -20,7 +20,7 @@ extern void add_to_history(const char* command);
 
 /* 
   Returns a list of previous commands. Shows 40 by default
-  Maybe overriden with -n argument, where n is the number of commands to be shown
+  Maybe overriden with n argument, where n is the number of commands to be shown
   Stores upto 800 previous commands. Use ring buffer when space runs out 
 */
-extern struct Output write_history(size_t size);
+extern struct Output write_history(char* n);

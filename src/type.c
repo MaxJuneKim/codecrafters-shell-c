@@ -13,9 +13,10 @@
 
 // TODO: Duplicate behavior of zsh, treating every argument to type command as either builtin or executable binary that can be located in PATH variable
 struct Output executeType(const char* argCommand) {
-  struct Output output;
-  output.output = NULL;
-  output.error = NULL;
+  struct Output output = init_output();
+  if (argCommand == NULL) 
+    return output;
+
   for (int i = 0; i < total_commands; i++) { // For each builtin shell,
     // compare argument command to the current builtin shell. If match, print "shell builtin" and return
     if (strcmp(argCommand, built_in_commands[i]) == 0) {

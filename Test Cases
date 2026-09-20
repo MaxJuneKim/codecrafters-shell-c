@@ -85,3 +85,9 @@ Section 7: History
   6: Before typing any command,
       history
     It should load previous commands from previous session
+  7: After writing some commands, pass edge cases parameters to history command
+    1: number greater than number of commands typed so far
+    2: number greater than capacity
+    3: negative number
+    4: non-digit arguments
+    5: multiple arguments
