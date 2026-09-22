@@ -37,9 +37,7 @@ void forward_comm(char* buf) {
 }
 
 void load_history_from_file(char* path_to_history_file) { 
-  // char* home_dir = getenv("HOME");
-  // char history_full_path[60];
-  // snprintf(history_full_path, 60, "%s/%s", home_dir, ".my_shell_history");
+  if (path_to_history_file == NULL) return;
   FILE* read = fopen(path_to_history_file, "r");
   size_t tmp_sz = 0;
   size_t i = 0;
@@ -55,22 +53,17 @@ void load_history_from_file(char* path_to_history_file) {
   fclose(read);
 }
 
-void store_history() {
-  const char *home = getenv("HOME");
-  char history_full_path[50];
-  snprintf(history_full_path, 50, "%s/%s", home, ".my_shell_history");
-
-  FILE* history = fopen(history_full_path, "w");
+void store_history(char* path_to_history_file) {
+  if (path_to_history_file == NULL) return;
+  FILE* history = fopen(path_to_history_file, "w");
   if (history == NULL) return;
 
   size_t i = 0;
   size_t read_cursor = offset;
-  while (i < prev_commands_size && historic_commands[read_cursor] != NULL) {
-    if (read_cursor > prev_commands_size) 
-      read_cursor = 0;
-    fprintf(history, "%s\n", historic_commands[read_cursor++]);
-
-    i++;
+  while (i++ < prev_commands_size && historic_commands[read_cursor] != NULL) {
+    fprintf(history, "%s\n", historic_commands[read_cursor]);
+    if (read_cursor == prev_commands_size) read_cursor = 0;
+    else read_cursor++;
   }
   fclose(history);
 }
@@ -106,7 +99,10 @@ struct Output history(char** arguments) {
   if (*arguments && strcmp(*arguments, "-r") == 0) {
     load_history_from_file(arguments[1]);
     return init_output();
-  } 
+  } else if (*arguments && strcmp(*arguments, "-w") == 0) {
+    store_history(arguments[1]);
+    return init_output();
+  }
 
   size_t size;
   if (*arguments == NULL) size = 40; // if argument is empty, stick to default size 40

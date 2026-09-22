@@ -14,7 +14,7 @@ extern void load_prev_comm(char* buf);
 extern void forward_comm(char* buf);
 
 // When session ends, store the previous commands to ~/.my_shell_history
-extern void store_history();
+extern void store_history(char* path_to_history_file);
 
 // array of poionters to constant characters.
 extern char* historic_commands[prev_commands_size + 1];

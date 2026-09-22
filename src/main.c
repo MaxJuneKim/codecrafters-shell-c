@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     executeCommand(input);
   }
   
-  store_history();
+  // store_history();
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
   for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) free(ALL_EXECUTABLES[i]);
   free(ALL_EXECUTABLES);
