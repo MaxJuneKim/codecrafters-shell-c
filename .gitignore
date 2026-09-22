@@ -55,6 +55,8 @@ build
 temp_bins
 vcpkg_installed
 CMakePresets.json
+Test Cases
 
 # .vscode
 .vscode/*
+

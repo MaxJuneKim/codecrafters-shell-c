@@ -12,6 +12,28 @@ char* historic_commands[prev_commands_size + 1] = { NULL };
 
 static size_t add_cursor = 0;
 static size_t offset = 0;
+static size_t history_cursor = 0;
+
+void load_prev_comm(char* buf) { 
+  if (history_cursor == offset) {
+    // do nothing
+  } else if (history_cursor <= 0) {
+    history_cursor = add_cursor < offset ? prev_commands_size : add_cursor - 1;
+  } else {
+    history_cursor--;
+  }
+  strcpy(buf, historic_commands[history_cursor] ? historic_commands[history_cursor]: "");
+}
+
+void forward_comm(char* buf) {
+  if (history_cursor == add_cursor) {
+    // do nothing
+  } else if (history_cursor >= prev_commands_size) 
+    history_cursor = 0;
+  else 
+    history_cursor++;
+  strcpy(buf, historic_commands[history_cursor] ? historic_commands[history_cursor]: "");
+}
 
 void load_history_from_file() { 
   char* home_dir = getenv("HOME");
@@ -62,9 +84,10 @@ void add_to_history(const char* command) {
 
   if (historic_commands[add_cursor] != NULL) {
     free(historic_commands[add_cursor]);
-    historic_commands[add_cursor] = nullptr;
+    historic_commands[add_cursor] = NULL;
     offset = add_cursor + 1;
   }
+  history_cursor = add_cursor;
 }
 
 struct Output write_history(char* n) {

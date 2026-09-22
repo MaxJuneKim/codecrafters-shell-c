@@ -7,6 +7,12 @@
 // Before the current session starts, retrieve previous commands from .my_shell_history file
 extern void load_history_from_file();
 
+// When user presses an up arrow, automatically load previous command into the given buffer
+extern void load_prev_comm(char* buf);
+
+// Automatically type forward command into the given buffer when user presses a down arrow,
+extern void forward_comm(char* buf);
+
 // When session ends, store the previous commands to ~/.my_shell_history
 extern void store_history();
 
