@@ -14,6 +14,7 @@ char* historic_commands[prev_commands_size + 1] = { NULL };
 static size_t add_cursor = 0;
 static size_t offset = 0;
 static size_t history_cursor = 0;
+static size_t next_append_cursor = 0;
 
 void load_prev_comm(char* buf) { 
   if (history_cursor == offset) {
@@ -39,16 +40,22 @@ void forward_comm(char* buf) {
 void load_history_from_file(char* path_to_history_file) { 
   if (path_to_history_file == NULL) return;
   FILE* read = fopen(path_to_history_file, "r");
-  size_t tmp_sz = 0;
   size_t i = 0;
+  char tmp_buf[1024];
 
   if (read == NULL) return;
+  while (i++ < prev_commands_size && fgets(tmp_buf, 1024, read) != NULL) {
+    size_t bytes = strlen(tmp_buf);
 
-  while (i++ < prev_commands_size && getline(historic_commands + add_cursor, &tmp_sz, read) != -1) {
-    historic_commands[add_cursor][strlen(historic_commands[add_cursor]) - 1] = '\0';
+    historic_commands[add_cursor] = (char*)malloc(sizeof(char) * bytes);
+    tmp_buf[bytes - 1] = '\0'; // truncating the new line
+    strcpy(historic_commands[add_cursor], tmp_buf);
+
     if (add_cursor >= prev_commands_size) add_cursor = 0;
     else add_cursor++;
+    free(historic_commands[add_cursor]);
   }
+
   history_cursor = add_cursor;
   fclose(read);
 }
@@ -68,6 +75,21 @@ void store_history(char* path_to_history_file) {
   fclose(history);
 }
 
+void append_history(char* path_to_history_file) {
+  if (path_to_history_file == NULL) return;
+  FILE* history = fopen(path_to_history_file, "a");
+  if (history == NULL) return;
+
+  size_t i = 0;
+  size_t read_cursor = next_append_cursor;
+  while (i++ < prev_commands_size && historic_commands[read_cursor] != NULL && read_cursor != add_cursor) {
+    fprintf(history, "%s\n", historic_commands[read_cursor]);
+    if (read_cursor == prev_commands_size) read_cursor = 0;
+    else read_cursor++;
+  }
+  fclose(history);
+}
+
 void add_to_history(const char* command) {
   if (*command == '\0') return; // skip empty command
   historic_commands[add_cursor] = (char*)malloc(sizeof(char) * strlen(command) + 1);
@@ -79,9 +101,10 @@ void add_to_history(const char* command) {
   if (historic_commands[add_cursor] != NULL) {
     free(historic_commands[add_cursor]);
     historic_commands[add_cursor] = NULL;
-    offset = add_cursor + 1;
+    offset = add_cursor == prev_commands_size ? 0 : add_cursor + 1;
   }
   history_cursor = add_cursor;
+  if (add_cursor == next_append_cursor) next_append_cursor = offset;
 }
 
 /*
@@ -99,6 +122,10 @@ struct Output history(char** arguments) {
   if (*arguments && strcmp(*arguments, "-r") == 0) {
     load_history_from_file(arguments[1]);
     return init_output();
+  } else if (*arguments && strcmp(*arguments, "-a") == 0) {
+    append_history(arguments[1]); 
+    next_append_cursor = add_cursor;
+    return init_output();
   } else if (*arguments && strcmp(*arguments, "-w") == 0) {
     store_history(arguments[1]);
     return init_output();
@@ -112,7 +139,11 @@ struct Output history(char** arguments) {
   else if (*arguments && size == 0) size = 40; // if argument is invalid(0, alpha string), stick to default size 40
   else if (*arguments && size > prev_commands_size) size = prev_commands_size; // if argument is greater than capacity, opt to capacity size
 
-  size_t read_cursor = add_cursor == 0 ? prev_commands_size : add_cursor - 1;
+  size_t read_cursor;
+  if (offset > add_cursor && add_cursor == 0) read_cursor = prev_commands_size;
+  else if (offset == 0 && add_cursor == 0) read_cursor = 0;
+  else read_cursor = add_cursor - 1;
+
   size_t cap = add_cursor < offset ? prev_commands_size : add_cursor;
   size_t index = cap;
   size_t i = 0;

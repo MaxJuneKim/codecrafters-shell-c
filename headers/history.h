@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-#define prev_commands_size 10
+#define prev_commands_size 800
 
 // Before the current session starts, retrieve previous commands from .my_shell_history file
 extern void load_history_from_file(char* path_to_history_file);
@@ -13,10 +13,13 @@ extern void load_prev_comm(char* buf);
 // Automatically type forward command into the given buffer when user presses a down arrow,
 extern void forward_comm(char* buf);
 
-// When session ends, store the previous commands to ~/.my_shell_history
+// When session ends, store the previous commands to the specified file
 extern void store_history(char* path_to_history_file);
 
-// array of poionters to constant characters.
+// append history to the specified file
+extern void append_history(char* path_to_history_file);
+
+// array of poionters to characters.
 extern char* historic_commands[prev_commands_size + 1];
 
 /*
