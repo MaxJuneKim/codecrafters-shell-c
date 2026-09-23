@@ -45,7 +45,7 @@ void executeCommand(const char* input) {
 
 int main(int argc, char *argv[]) {
   load_all_executables();
-  // load_history_from_file();
+  load_history_from_file(getenv("HISTFILE"));
 
   // Flush after every printf
   setbuf(stdout, NULL);
