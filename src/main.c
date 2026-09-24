@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
           printf("\r$ %s", input);
         } else { // TODO: need more handling for other control sequence characters like left and right arrow key
           cursor -= 2;
-          printf("%c%c%c", input[cursor - 2], input[cursor - 1], input[cursor]);
+          printf("%c%c%c", input[cursor - 2], input[cursor - 1], input[cursor]); // shoud I just disable it?
         }
         second_tab = false;
       } else if (input[cursor] != 127) { // not a delete control signal
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     executeCommand(input);
   }
   
-  store_history(getenv("HISTFILE"));
+  append_history(getenv("HISTFILE"));
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
   for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) free(ALL_EXECUTABLES[i]);
   free(ALL_EXECUTABLES);

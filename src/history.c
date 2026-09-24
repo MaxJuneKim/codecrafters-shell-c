@@ -14,7 +14,9 @@ char* historic_commands[prev_commands_size + 1] = { NULL };
 static size_t add_cursor = 0;
 static size_t offset = 0;
 static size_t history_cursor = 0;
-static size_t next_append_cursor = 0;
+static size_t next_append_cursor = 0; 
+// Having only one next_append_cursor might split historic commands through multiple files. 
+// But I don't want to have too many next_append_cursors for each and every file
 
 void load_prev_comm(char* buf) { 
   if (history_cursor == offset) {
@@ -56,6 +58,13 @@ void load_history_from_file(char* path_to_history_file) {
     free(historic_commands[add_cursor]);
   }
 
+  next_append_cursor = add_cursor; 
+  // Not appending commands loaded through history -r command
+  // This has a problem where commands typed by users before history -r are also truncated. Buf if I don't do it like this,
+  // history -r file1
+  // history -a file1
+  // will store duplicate commands to file1. This was the issue in "append history on exit" stage.
+  // I can make separate HISTFILE_APPEND_CURSOR just for HISTFILE, but for some reason, I kind of don't like it
   history_cursor = add_cursor;
   fclose(read);
 }
