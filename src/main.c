@@ -21,6 +21,7 @@
 #include "locate_bin.h"
 #include "tab.h"
 #include "history.h"
+#include "locate_files.h"
 
 // TODO: 
 // I'm facing plenty of cases where output of my local run and codecrafter testing are different.
@@ -44,6 +45,7 @@ void executeCommand(const char* input) {
 }
 
 int main(int argc, char *argv[]) {
+  load_files_cur_dir();
   load_all_executables();
   load_history_from_file(getenv("HISTFILE"));
 
@@ -100,7 +102,6 @@ int main(int argc, char *argv[]) {
     second_tab = false;
 
     add_to_history(input);
-
     if (strcmp(input, "exit") == 0) {
       break;
     }
