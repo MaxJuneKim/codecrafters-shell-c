@@ -91,3 +91,21 @@ Section 7: History
     3: negative number
     4: non-digit arguments
     5: multiple arguments
+
+Section 8:
+  1: Plain file completion
+    cat REA<tab> should complete to cat README.md
+    cat vcpkg<tab> should complete to cat vcpkg.json or cat vcpkg-configuration.json
+    cat you<tab> should complete to cat your_program.sh
+    cat nonexist<tab> should not complete
+    cat z<tab> should not complete
+    cat x<tab> should not complete
+    After tabbing, make sure cursor is set to correct position by following up with backspaces, further arguments, more typing, and more
+  2: Nested completion
+    cat src/Nav<tab> should complete to cat src/Navigation
+    cat src/hist<tab> should complete to src/history.c
+    cat /<tab> should complete to any file in root directory
+    cat <tab> should complete to any file in current directory
+    choose cat /Users/<username>/<prefix>
+    cat /<space><space><space><tab>
+  3: Edge cases 

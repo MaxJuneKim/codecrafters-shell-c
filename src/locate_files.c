@@ -6,22 +6,18 @@
 #include <global_vars.h>
 #include "locate_files.h"
 
-void load_files_cur_dir() {
-  DIR *dir = opendir(".");
-  if (!dir) return;
+size_t get_files_in_dir(char** dest, const char* const dir_path) {
+  DIR *dir = opendir(dir_path ? dir_path : ".");
+  if (!dir) return -1;
 
-  char** tmp_buf = (char**)malloc(sizeof(char*) * 128);
+  size_t files_count = 0;
   struct dirent *entry;
   while ((entry = readdir(dir)) != NULL) {
     if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
-    tmp_buf[FILES_COUNT++] = strdup(entry->d_name);
+    dest[files_count++] = strdup(entry->d_name);
   }
 
-  FILES_IN_CUR_DIR = (char**)malloc(sizeof(char*) * (FILES_COUNT + 1));
-  for (size_t i = 0; i < FILES_COUNT; i++) 
-    FILES_IN_CUR_DIR[i] = tmp_buf[i];
-
-  FILES_IN_CUR_DIR[FILES_COUNT] = NULL;
+  dest[files_count] = NULL;
   closedir(dir);
-  free(tmp_buf);
+  return files_count;
 }

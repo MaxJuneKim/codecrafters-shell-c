@@ -4,29 +4,27 @@
 #include <stdbool.h>
 
 #include "tab.h"
+#include "locate_files.h"
 #include "global_vars.h"
 #include "sort_command.h"
 
 static void auto_complete_to_longest_common_prefix(char** matching_executables, char *input, size_t* cursor);
 static void cmd_auto_complete(char* input, char** matching_executables, size_t* cursor, bool* second_tab);
-static void file_auto_complete(char* input, char** matching_executables, size_t* input_cursor, bool* second_tab);
+static void file_auto_complete(char* file_path, char** matching_executables,size_t* input_cursor, bool* second_tab);
 
 // tab function does not have ownership of any of the passed instance of these arguments, thus, should not free any of them
 // TODO: current implementation of command tab assumes that the command will not have space character in them and thus need not be enclosed in quotes
 // Try to support advanced auto completion for these kinds of commands. Same for file auto completion
 void tab(char* input, char** matching_executables, size_t* cursor, bool* second_tab) {
-  size_t i = 0;
-  while (i < *cursor) {
-    if (input[i] == ' ') break;
-    else i++;
-  }
-
-  if (i < *cursor) file_auto_complete(input, matching_executables, cursor, second_tab);
+  input[*cursor] = '\0'; // temporarily place null terminating character for strcmp
+  char* str = strchr(input, ' '); 
+  if (str != NULL) file_auto_complete(str + 1, matching_executables, cursor, second_tab);
   else cmd_auto_complete(input, matching_executables, cursor, second_tab);
 }
 
+// TODO: More general logic for completing builtin commands
 static void cmd_auto_complete(char* input, char** matching_executables, size_t* cursor, bool* second_tab) {
-  input[*cursor] = '\0'; // temporarily place null terminating character for strcmp
+  // input[*cursor] = '\0'; 
   if (strcmp(input, "ech") == 0) { // 
     input[(*cursor)++] = 'o';
     input[(*cursor)++] = ' ';
@@ -77,28 +75,42 @@ static void cmd_auto_complete(char* input, char** matching_executables, size_t* 
 }
 
 // TODO: support autocompletion of files that have a space character(s) in them
-static void file_auto_complete(char* input, char** matching_executables, size_t* input_cursor, bool* second_tab) {
-  input[*input_cursor] = '\0'; // temporarily place null terminating character for strcmp
-  // Going back to the start of the current argument. 
+static void file_auto_complete(char* file_path, char** matching_executables, size_t* input_cursor, bool* second_tab) {
   // Edge case: What if user opened with quotes? What if user already opened and closed quotes in the current argument? 
   // ex) cmd "this is my...    or    cmd hello"this"is...
   // Edge case: what if current character is a space character? In other words, what if current argument hasn't started?
-  size_t cursor = *input_cursor;
-  while (input[cursor] != ' ') cursor--;
-  cursor += 1;
+  if (file_path == NULL) return;
+
+  char* last_slash = strrchr(file_path, '/');
+  char* prefix = last_slash == NULL ? file_path : last_slash + 1; 
+  char** files_in_dir = (char**)malloc(sizeof(char*) * 128);
+  size_t files_count;
+
+  if (last_slash == NULL) {
+    files_count = get_files_in_dir(files_in_dir, ".");
+  } else {
+    size_t dir_name_sz = prefix - file_path + 1;
+    char dir_name[dir_name_sz]; // getting current directory name
+    dir_name[dir_name_sz - 1] = '\0';
+    for (size_t i = 0; i < dir_name_sz - 1; i++)
+      dir_name[i] = file_path[i];
+    files_count = get_files_in_dir(files_in_dir, dir_name);
+  }
 
   // find matching files
-  // char** matching_files = (char**)malloc(sizeof(char*) * FILES_COUNT);
-  size_t prefix_sz = *input_cursor - cursor;
-  for (size_t i = 0; i < FILES_COUNT; i++) {
-    if (strncmp(input + cursor, FILES_IN_CUR_DIR[i], prefix_sz) == 0) {
-      printf("%s ", FILES_IN_CUR_DIR[i] + prefix_sz);
+  size_t prefix_sz = strlen(prefix);
+  for (size_t i = 0; i < files_count; i++) {
+    if (strncmp(prefix, files_in_dir[i], prefix_sz) == 0) {
+      printf("%s ", files_in_dir[i] + prefix_sz);
 
       size_t file_cursor = prefix_sz;
-      while (FILES_IN_CUR_DIR[i][file_cursor] != '\0') {
-        input[(*input_cursor)++] = FILES_IN_CUR_DIR[i][file_cursor++];
+      while (files_in_dir[i][file_cursor] != '\0') {
+        prefix[file_cursor] = files_in_dir[i][file_cursor];
+        file_cursor++;
+        *(input_cursor) += 1;
       }
-      input[(*input_cursor)++] = ' ';
+      *(input_cursor) += 1;
+      prefix[file_cursor] = ' ';
       break;
     }
   }

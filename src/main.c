@@ -45,7 +45,6 @@ void executeCommand(const char* input) {
 }
 
 int main(int argc, char *argv[]) {
-  load_files_cur_dir();
   load_all_executables();
   load_history_from_file(getenv("HISTFILE"));
 
