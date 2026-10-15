@@ -108,4 +108,5 @@ Section 8:
     cat <tab> should complete to any file in current directory
     choose cat /Users/<username>/<prefix>
     cat /<space><space><space><tab>
-  3: Edge cases 
+  3: Matching directory name
+    ls /ho<tab> should complete to ls /home/

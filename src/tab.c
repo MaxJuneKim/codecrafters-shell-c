@@ -1,3 +1,4 @@
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,37 +84,45 @@ static void file_auto_complete(char* file_path, char** matching_executables, siz
 
   char* last_slash = strrchr(file_path, '/');
   char* prefix = last_slash == NULL ? file_path : last_slash + 1; 
-  char** files_in_dir = (char**)malloc(sizeof(char*) * 128);
-  size_t files_count;
+  // char** files_in_dir = (char**)malloc(sizeof(char*) * 128);
+
+  DIR *dir;
 
   if (last_slash == NULL) {
-    files_count = get_files_in_dir(files_in_dir, ".");
+    // files_count = get_files_in_dir(files_in_dir, ".");
+    dir = opendir(".");
   } else {
     size_t dir_name_sz = prefix - file_path + 1;
     char dir_name[dir_name_sz]; // getting current directory name
     dir_name[dir_name_sz - 1] = '\0';
     for (size_t i = 0; i < dir_name_sz - 1; i++)
       dir_name[i] = file_path[i];
-    files_count = get_files_in_dir(files_in_dir, dir_name);
+    dir = opendir(dir_name);
   }
+  if (!dir) return;
 
   // find matching files
   size_t prefix_sz = strlen(prefix);
-  for (size_t i = 0; i < files_count; i++) {
-    if (strncmp(prefix, files_in_dir[i], prefix_sz) == 0) {
-      printf("%s ", files_in_dir[i] + prefix_sz);
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) { // for each file in directory
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+    if (strncmp(prefix, entry->d_name, prefix_sz) == 0) {
+
+      if (entry->d_type == DT_DIR) printf("%s/", entry->d_name + prefix_sz);
+      else printf("%s ", entry->d_name + prefix_sz);
 
       size_t file_cursor = prefix_sz;
-      while (files_in_dir[i][file_cursor] != '\0') {
-        prefix[file_cursor] = files_in_dir[i][file_cursor];
+      while (entry->d_name[file_cursor] != '\0') {
+        prefix[file_cursor] = entry->d_name[file_cursor];
         file_cursor++;
         *(input_cursor) += 1;
       }
       *(input_cursor) += 1;
-      prefix[file_cursor] = ' ';
+      prefix[file_cursor] = entry->d_type == DT_DIR ? '/' : ' ';
       break;
     }
   }
+  closedir(dir);
 }
 
 // When user presses tab and there are multiple matches, auto-complete to longest common prefixes of those matching executables
