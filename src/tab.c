@@ -119,9 +119,11 @@ static void file_auto_complete(char* file_path, char** matching_executables, siz
       }
       *(input_cursor) += 1;
       prefix[file_cursor] = entry->d_type == DT_DIR ? '/' : ' ';
-      break;
+      closedir(dir);
+      return;
     }
   }
+  fputc('\x07', stdout);
   closedir(dir);
 }
 
