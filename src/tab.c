@@ -13,6 +13,7 @@ static char** matching_executables;
 static char** matching_files;
 
 static void auto_complete_to_longest_common_prefix(char** matching_executables, char *input, size_t* cursor);
+static void auto_complete_to_longest_common_prefix_files(char** matching_files, char *input, size_t* input_cursor, size_t cursor);
 static void cmd_auto_complete(char* input, size_t* cursor, bool* second_tab);
 static void file_auto_complete(char* input, char* file_path, size_t* input_cursor, bool* second_tab);
 
@@ -150,6 +151,7 @@ static void file_auto_complete(char* input, char* file_path, size_t* input_curso
   } else if (matching_count > 1) { // multiple matching files
     *second_tab = true;
     fputc('\x07', stdout);
+    auto_complete_to_longest_common_prefix_files(matching_files, input, input_cursor, prefix_sz);
   } else if (matching_count == 1) { // 1 matching file
     size_t file_cursor = prefix_sz;
     while (matching_files[0][file_cursor] != '\0') {
@@ -185,5 +187,25 @@ static void auto_complete_to_longest_common_prefix(char** matching_executables, 
     fputc(matching_executables[j][*cursor], stdout);
     input[*cursor] = matching_executables[j][*cursor];
     (*cursor)++;
+  }
+}
+
+// When user presses tab and there are multiple matches, auto-complete to longest common prefixes of those matching files
+static void auto_complete_to_longest_common_prefix_files(char** matching_files, char *input, size_t* input_cursor, size_t cursor) {
+  if (*matching_files == NULL) return;
+
+  while (true) {
+    size_t j = 0;
+    for (; matching_files[j + 1]; j++) { // for each string
+      if (matching_files[j][cursor] == '\0' || 
+          matching_files[j + 1][cursor] == '\0' || 
+          matching_files[j][cursor] != matching_files[j + 1][cursor]) {
+        return;
+      }
+    }
+    fputc(matching_files[j][cursor], stdout);
+    input[*input_cursor] = matching_files[j][cursor];
+    (*input_cursor)++;
+    cursor++;
   }
 }
