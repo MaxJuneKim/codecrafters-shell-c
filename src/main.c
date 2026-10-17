@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
   
   char input[1024];
   bool second_tab = false;
-  char** matching_executables = (char**)malloc(sizeof(char*) * PATH_EXECUTABLES_COUNT);
+  // char** matching_executables = (char**)malloc(sizeof(char*) * PATH_EXECUTABLES_COUNT);
   while (true) {
     printf("$ "); // TODO: In the future, each prompt should start with a new line
     // printf("$ ")
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
         cursor--;
         second_tab = false;
       } else if (input[cursor] == '\t') { // auto-completion
-        tab(input, matching_executables, &cursor, &second_tab);
+        tab(input, &cursor, &second_tab);
       } else if (cursor >= 2 && input[cursor - 1] == '[' && input[cursor - 2] == 27) { 
         if (input[cursor] == 'A' || input[cursor] == 'B') { // up or down arrow key
           input[cursor] == 'A' ? load_prev_comm(input) : forward_comm(input);
@@ -112,6 +112,6 @@ int main(int argc, char *argv[]) {
   tcsetattr(STDIN_FILENO, TCSANOW, &orig);
   for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) free(ALL_EXECUTABLES[i]);
   free(ALL_EXECUTABLES);
-  free(matching_executables);
+  // free(matching_executables);
   return 0;
 }

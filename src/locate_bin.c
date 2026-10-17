@@ -10,7 +10,8 @@
 
 #include "locate_bin.h"
 #include "global_vars.h"
-#include "sort_command.h"
+#include "sort_strings.h"
+#include "tab.h"
 
 // REVISIT NOTE: The way I remember is, processors on different operating systems have different set of defined variables
 // Windows preprocessor would have __WIN32 and __WIN64 defined but not MAC_OS or Linux preprocessor for example.
@@ -67,12 +68,14 @@ void load_all_executables() { // pre-load all binaries when this program loads?
   ALL_EXECUTABLES = (char**)malloc(sizeof(char*) * (PATH_EXECUTABLES_COUNT + 1));
   for (size_t i = 0; i < PATH_EXECUTABLES_COUNT; i++) // copying to the global variables
     ALL_EXECUTABLES[i] = binaries[i];
-  sort_commands(ALL_EXECUTABLES, 0, PATH_EXECUTABLES_COUNT);
+  sort_strings(ALL_EXECUTABLES, 0, PATH_EXECUTABLES_COUNT);
   ALL_EXECUTABLES[PATH_EXECUTABLES_COUNT] = NULL;
 
   // cleanup
   free(binaries);
   free(all_paths);
+  init_matching_executables(PATH_EXECUTABLES_COUNT);
+  init_matching_files();
 }
 
 char* locate_bin(const char* argCommand) {

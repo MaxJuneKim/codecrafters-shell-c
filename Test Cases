@@ -110,3 +110,15 @@ Section 8:
     cat /<space><space><space><tab>
   3: Matching directory name
     ls /ho<tab> should complete to ls /home/
+    ls /User<tab> should complete to ls /Users/
+    ls ./<dir>/<sub_dir_1>/<sub_dir_2_prefix><tab> 
+  4: Multiple matches
+    If there are multiple matches in nested file, does it have to print full file_path including parent directories?
+    ls /temp_bins/my_comm<tab>
+    Test that cursor position is in correct position by mixing multiple tabs, backspaces, spaces, normal characters, and more
+    echo empty_file <tab><tab><tab> <tab> multiple times
+    echo no_match<tab><tab> testing no match. cursor should not move
+    echo /Users/youngjoonkim/ <tab> <tab> on other than first argument
+    echo /Users/youngjoonkim/ temp_bins/<tab>
+    echo your_program.sh <tab><tab><tab> <tab> on empty argument
+    echo your_prog<tab> <tab><tab> should complete to echo your_program.sh <all files in current directory...>
