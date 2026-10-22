@@ -54,7 +54,7 @@ static void* execute_bin(void* arg);
 
 // Helper function. Return true if passed command is a builtin, false otherwise
 static bool is_built_in(const char* cmd) {
-  return strcmp(cmd, "echo") == 0 || strcmp(cmd, "type") == 0 || strcmp(cmd, "pwd") == 0 || strcmp(cmd, "cd") == 0 || strcmp(cmd, "history") == 0;
+  return strcmp(cmd, "echo") == 0 || strcmp(cmd, "type") == 0 || strcmp(cmd, "pwd") == 0 || strcmp(cmd, "cd") == 0 || strcmp(cmd, "history") == 0 || strcmp(cmd, "jobs") == 0;
 }
 
 void execute_cmd(const struct Argument* commands) {
@@ -158,6 +158,8 @@ void* execute_built_in(void* arg) {
     output = cd(pipeline->argument->arguments[1]);
   } else if (strcmp(pipeline->argument->arguments[0], "history") == 0) {
     output = history(pipeline->argument->arguments + 1); 
+  } else if (strcmp(pipeline->argument->arguments[0], "jobs") == 0) {
+    output = init_output();
   }
 
   // Write to next cmd. Check if output to next command fd is -1, signaling another builtin

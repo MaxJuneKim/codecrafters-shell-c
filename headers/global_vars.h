@@ -1,6 +1,6 @@
 #pragma once
 
-#define total_commands 6
+#define total_commands 7
 
 extern const char* const built_in_commands[total_commands];
 extern const char special_characters[2];

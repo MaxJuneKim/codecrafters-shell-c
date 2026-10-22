@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "global_vars.h"
 
-const char* const built_in_commands[total_commands] = {"echo", "type", "exit", "pwd", "cd", "history"};
+const char* const built_in_commands[total_commands] = {"echo", "type", "exit", "pwd", "cd", "history", "jobs"};
 const char special_characters[2] = {'~', '\0'}; // TO ADD: $
 
 char** ALL_EXECUTABLES = NULL;

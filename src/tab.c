@@ -191,6 +191,7 @@ static void auto_complete_to_longest_common_prefix(char** matching_executables, 
 }
 
 // When user presses tab and there are multiple matches, auto-complete to longest common prefixes of those matching files
+// TODO: merge this code with auto_complete_to_longest_common_prefix to create more general logic that covers both commands and files auto-completion
 static void auto_complete_to_longest_common_prefix_files(char** matching_files, char *input, size_t* input_cursor, size_t cursor) {
   if (*matching_files == NULL) return;
 
